@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/ui/theme-provider";
+import { AppProvider } from "@/context/app-context";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import Assets from "@/pages/assets";
@@ -22,13 +23,13 @@ import { Loader } from "lucide-react";
 // Protected route wrapper
 function ProtectedRoute({ component: Component, ...rest }: { component: React.ComponentType<any>; [key: string]: any }) {
   const { isAuthenticated, isLoading } = useAuth();
-  const [, navigate] = useNavigate();
+  const [, setLocation] = useLocation();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      navigate("/login");
+      setLocation("/login");
     }
-  }, [isAuthenticated, isLoading, navigate]);
+  }, [isAuthenticated, isLoading, setLocation]);
 
   if (isLoading) {
     return (
@@ -75,7 +76,7 @@ function Router() {
 function App() {
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const isAuthPage = location === "/login" || location === "/landing";
 
   const toggleSidebar = () => {
@@ -85,25 +86,27 @@ function App() {
   useEffect(() => {
     // Redirect to landing page on initial load
     if (location === "/") {
-      window.location.href = "/landing";
+      setLocation("/landing");
     }
-  }, []);
+  }, [location, setLocation]);
 
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="light" storageKey="asset-tracker-theme">
         <TooltipProvider>
-          {isAuthPage ? (
-            <Router />
-          ) : (
-            <div className="flex h-screen overflow-hidden bg-neutral-100 text-neutral-800">
-              <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
-              <div className="flex-1 flex flex-col overflow-hidden">
-                <Router />
+          <AppProvider>
+            {isAuthPage ? (
+              <Router />
+            ) : (
+              <div className="flex h-screen overflow-hidden bg-neutral-100 text-neutral-800">
+                <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  <Router />
+                </div>
               </div>
-            </div>
-          )}
-          <Toaster />
+            )}
+            <Toaster />
+          </AppProvider>
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>

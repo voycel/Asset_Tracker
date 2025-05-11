@@ -40,6 +40,18 @@ export const AppProvider = ({ children }: AppProviderProps) => {
 
   const fetchData = async () => {
     try {
+      // Fetch user
+      try {
+        const userResponse = await fetch("/api/auth/user");
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          setUser(userData);
+        }
+      } catch (authError) {
+        console.error("Auth error:", authError);
+        setUser(null);
+      }
+      
       // Fetch workspaces
       const workspacesResponse = await apiRequest("GET", "/api/workspaces");
       const workspacesData = await workspacesResponse.json();
@@ -73,18 +85,6 @@ export const AppProvider = ({ children }: AppProviderProps) => {
       const assignmentsResponse = await apiRequest("GET", "/api/assignments");
       const assignmentsData = await assignmentsResponse.json();
       setAssignments(assignmentsData);
-
-      // Set default user (since we don't have auth yet)
-      setUser({
-        id: 1,
-        username: "admin",
-        password: "",  // We don't need to expose the password
-        displayName: "Administrator",
-        email: "admin@example.com",
-        role: "admin",
-        workspaceId: workspacesData.length > 0 ? workspacesData[0].id : null,
-        createdAt: new Date()
-      });
     } catch (error) {
       console.error("Error fetching initial data:", error);
     }
