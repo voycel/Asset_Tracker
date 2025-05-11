@@ -1,0 +1,64 @@
+Design and Develop a Universal, Configurable Web-Based Asset Tracking Platform
+Objective:
+Create a detailed specification and step-by-step development plan for a browser-based web application designed as a universal and configurable platform for tracking diverse physical assets. The platform must be highly intuitive for end-users (akin to a digital whiteboard for managing items) while offering powerful administrative tools for customization to suit various tracking needs across different products, manufacturers, and item types. Foundational to this platform is a flexible, robust database architecture designed for configurability from the outset and integrated into every development phase.
+Background & Core Concept:
+The inspiration comes from the need to replace manual tracking systems (like a physical whiteboard used for specific equipment) with a digital solution. However, this platform will not be tied to any single type of asset. Instead, it will empower administrators to define:
+ * Asset Types: What kinds of items are being tracked (e.g., "Electronics," "Vehicles," "Lab Equipment," "IT Assets," "Tools").
+ * Custom Attributes: Specific data points relevant to each Asset Type (e.g., for "Electronics," custom attributes might include "Firmware Version," "MAC Address"; for "Vehicles," "License Plate," "Mileage").
+ * Tracking Parameters: Customizable statuses, locations, and assignment contexts relevant to their specific operational workflows.
+Core Requirements & Features:
+ * Highly Configurable Database-First Architecture:
+   * Initial Schema Design (Relational, e.g., PostgreSQL/MySQL):
+     * Workspaces or Tenants (Optional, for multi-organization use): workspace_id (PK), workspace_name. (If the app is to support multiple distinct user groups).
+     * AssetTypes: asset_type_id (PK), workspace_id (FK, if multi-tenant), type_name (e.g., "Laptop," "Sensor," "Microscope"), type_description, icon (optional).
+     * Manufacturers: manufacturer_id (PK), workspace_id (FK, if multi-tenant), manufacturer_name, contact_info.
+     * CustomFieldDefinitions: field_definition_id (PK), asset_type_id (FK), field_name (e.g., "CPU Speed," "Calibration Due Date"), field_type (e.g., 'Text', 'Number', 'Date', 'Boolean', 'Dropdown', 'User_Reference'), is_required, dropdown_options (if field_type is 'Dropdown'), is_filterable, is_visible_on_card.
+     * Assets (Trackable Items): asset_id (PK), workspace_id (FK, if multi-tenant), asset_type_id (FK), unique_identifier (primary user-defined ID like Serial Number, Asset Tag - must be unique within asset type or workspace), asset_name_or_label, manufacturer_id (FK, optional), date_acquired, cost, general_notes, current_status_id (FK), current_location_id (FK), current_assignment_id (FK).
+     * AssetCustomFieldValues: value_id (PK), asset_id (FK), field_definition_id (FK), field_value_text, field_value_number, field_value_date, etc. (or a JSONB/TEXT field to store typed value).
+     * Statuses: status_id (PK), workspace_id (FK, if multi-tenant), asset_type_id (FK, optional, for type-specific statuses), status_name (e.g., "In Stock," "Deployed," "In Repair," "Awaiting Inspection"), status_color (for UI).
+     * Locations: location_id (PK), workspace_id (FK, if multi-tenant), asset_type_id (FK, optional, for type-specific locations), location_name (e.g., "Main Office Shelf A," "Client X Site," "Warehouse Bay 3"), location_description.
+     * Assignments (or Contexts / Projects - term can be configurable): assignment_id (PK), workspace_id (FK, if multi-tenant), assignment_name (e.g., "Project Alpha," "Loan to Dept Y," "Demo for Client Z"), assignment_details.
+     * AssetLog: log_id (PK), asset_id (FK), timestamp, user_id (FK, if auth implemented), action_type (e.g., 'CREATE', 'UPDATE_STATUS', 'UPDATE_LOCATION', 'ASSIGNED', 'CUSTOM_FIELD_UPDATE'), details_json (to store what changed, e.g., old/new values).
+   * Database Interaction: All operations must clearly map to this flexible schema.
+ * Administrative Configuration Panel: This is a critical part of the platform.
+   * Asset Type Management: Define, edit, delete Asset Types.
+   * Custom Field Management: For each Asset Type, define custom fields, their data types, whether they are required, filterable, or visible on the main asset card.
+   * Taxonomy Management: Define and manage lists for Manufacturers, Statuses (with colors), Locations, and Assignments/Contexts. Allow indication if these are global or specific to certain Asset Types.
+   * User Management (if authentication is implemented): Manage users and roles (e.g., Admin, Editor, Viewer).
+ * User Interface (UI) & User Experience (UX) - Dynamic & Intuitive:
+   * Configurable Dashboard:
+     * Visual overview, potentially Kanban-style columns representing user-chosen parameters (e.g., columns by Status, or Location, or grouped by AssetType).
+     * Asset "Blocks/Cards": Dynamically display information based on AssetType. Show standard fields (Unique ID, Name) and admin-selected CustomFields marked as 'visible_on_card'.
+   * Drag-and-Drop Functionality: Allow dragging asset blocks between columns (e.g., to change status or location) or to assign them, triggering database updates and logging.
+   * Dynamic Forms: Asset creation/editing forms must dynamically adapt based on the selected AssetType, showing relevant standard fields and all defined CustomFields.
+   * Detailed Asset View: Clicking an asset block shows all standard and custom field data, full history from AssetLog, notes, etc.
+ * Core Application Functionality:
+   * Asset Lifecycle Management: Add new assets (with dynamic forms per type), edit details, update status/location/assignment, archive/delete.
+   * Powerful Search & Filtering: Search by Unique ID, name. Filter by AssetType, Manufacturer, Status, Location, Assignment, and any CustomField marked as 'filterable'.
+   * Comprehensive Audit Trail (AssetLog): Automatic, detailed logging of all changes.
+   * Notes: General notes per asset, and notes per log entry.
+ * Data Export & Import:
+   * Export: Export filtered lists to CSV/Excel. Handle dynamic inclusion of custom fields in the export.
+   * Import (Optional but valuable): Bulk import assets from CSV, mapping columns to standard and custom fields for a selected Asset Type.
+ * Technology Stack (Suggestions):
+   * Frontend: React, Vue.js, or Svelte. Libraries for drag-and-drop.
+   * Backend: Node.js (Express.js), Python (Django/Flask), Ruby on Rails.
+   * Database: PostgreSQL (highly recommended for its JSONB support for custom fields and flexibility) or MySQL.
+ * Step-by-Step Development Plan (AI to elaborate):
+   * Phase 0: Database Schema & Admin Configuration Core. This is paramount. Design and implement the database. Develop the backend APIs and frontend UI for the entire Administrative Configuration Panel (Asset Types, Custom Fields, Taxonomies). This must be working before general asset tracking.
+   * Phase 1: Backend API - Asset Management. CRUD APIs for Assets, handling AssetCustomFieldValues, and creating AssetLog entries.
+   * Phase 2: Frontend - Basic Asset Display & Dynamic Forms. Display assets based on configuration. Implement dynamic forms for adding/editing assets.
+   * Phase 3: Frontend - Core Interactivity (Manual Updates, Detailed View). Implement functionality for manual updates and viewing full asset details including history.
+   * Phase 4: Frontend - Drag-and-Drop & Dashboard Customization.
+   * Phase 5: Search, Filtering, Sorting, and Data Export.
+   * Phase 6: User Authentication & Roles (if not part of Phase 0 for Admin).
+   * Phase 7: (Optional) Data Import Functionality.
+   * Phase 8: UI/UX Refinement, Styling, Comprehensive Testing, Documentation.
+Key Considerations for the AI Agent:
+ * Universality & Configurability: This is the primary design driver. The system must not hardcode any assumptions about what is being tracked beyond the core concept of an "asset."
+ * Scalability: Design for potentially many asset types, many custom fields per type, and many asset instances.
+ * Performance: Efficient database queries, especially with filtering on custom fields.
+ * User Experience for Admins: The configuration panel must be intuitive for non-technical admins to set up their tracking environment.
+ * User Experience for Regular Users: Once configured, tracking assets should be very straightforward.
+Please provide a comprehensive design document and a phased development plan based on this prompt, focusing on how the administrative configuration drives the rest of the application's behavior, data structure, and UI. Include API endpoint considerations and UI mock-up concepts for both the admin panel and the end-user asset tracking interface.
+This revised prompt makes it clear that you're aiming for a much more flexible and powerful platform. It puts the emphasis on the initial configuration by an administrator, which then shapes the experience for the everyday users of the system. This should guide the AI to think about a multi-layered application.
