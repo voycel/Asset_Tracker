@@ -1,5 +1,5 @@
 import { 
-  users, type User, type InsertUser,
+  users, type User, type InsertUser, type UpsertUser,
   workspaces, type Workspace, type InsertWorkspace,
   assetTypes, type AssetType, type InsertAssetType,
   customFieldDefinitions, type CustomFieldDefinition, type InsertCustomFieldDefinition,
