@@ -24,11 +24,24 @@ export default function ActivityLog() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [selectedAssetId, setSelectedAssetId] = useState<number | null>(null);
   const { toast } = useToast();
-  const { assetTypes, assets } = useAppContext();
+  const { assetTypes } = useAppContext();
+  const [assets, setAssets] = useState<any[]>([]);
 
   useEffect(() => {
     fetchLogs();
+    fetchAssets();
   }, [selectedAssetId]);
+  
+  const fetchAssets = async () => {
+    try {
+      const response = await apiRequest("GET", "/api/assets");
+      const assetsData = await response.json();
+      setAssets(assetsData);
+    } catch (error) {
+      console.error("Error fetching assets:", error);
+      setAssets([]);
+    }
+  };
 
   const fetchLogs = async () => {
     try {
