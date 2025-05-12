@@ -61,6 +61,7 @@ export function NewAssetModal({
   const extendedSchema = insertAssetSchema.extend({
     uniqueIdentifier: z.string().min(1, "Asset ID is required"),
     name: z.string().min(1, "Asset name is required"),
+    dateAcquired: z.string().or(z.date()).optional(),
   });
 
   type FormData = z.infer<typeof extendedSchema>;
