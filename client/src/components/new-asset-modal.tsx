@@ -513,7 +513,7 @@ export function NewAssetModal({
                       <SelectValue placeholder="Unassigned" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Unassigned</SelectItem>
+                      <SelectItem value="none">Unassigned</SelectItem>
                       {assignments.map((assignment) => (
                         <SelectItem key={assignment.id} value={assignment.id.toString()}>
                           {assignment.name}

@@ -205,7 +205,7 @@ export default function ActivityLog() {
                   <SelectValue placeholder="Filter by asset" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Assets</SelectItem>
+                  <SelectItem value="all">All Assets</SelectItem>
                   {assets.map((asset) => (
                     <SelectItem key={asset.id} value={asset.id.toString()}>
                       {asset.name} ({asset.uniqueIdentifier})
