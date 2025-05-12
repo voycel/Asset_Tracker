@@ -112,6 +112,12 @@ The primary objective is to significantly improve the Front-End User Interface (
     *   ✅ Improved the UI for Location and Assignment sections with clearer current value display.
     *   ✅ Added better loading states and error handling throughout the modal.
 
+*   **Asset Card Improvements:**
+    *   ✅ Removed the circular "devices" icon from asset cards to save space and reduce visual clutter.
+    *   ✅ Added support for displaying custom fields on asset cards that are marked as visible on card.
+    *   ✅ Implemented user preferences for controlling which standard fields (like Asset ID, price, etc.) are displayed on cards.
+    *   ✅ Created a "Card Display" preferences button in the dashboard filters to customize card appearance.
+
 **Still To Do:**
 *   **Comparative Analysis:** Research how leading commercial manufacturing/logistics software handles features like:
     *   Advanced product list filtering and sorting.
@@ -129,6 +135,7 @@ The primary objective is to significantly improve the Front-End User Interface (
 *   **Asset Detail View:**
     *   Further improve layout for clarity, especially with custom fields.
     *   Implement the placeholder workflow action buttons (Mark as Shipped, Initiate RMA, Mark as Returned).
+    *   Consider adding more customization options for the detail view similar to the card display preferences.
 
 *   **New Asset Modal:**
     *   Improve validation feedback.
@@ -214,5 +221,18 @@ The application was experiencing 500 errors when updating assets due to improper
 4. Added better error responses with specific error messages
 
 These changes have significantly improved the stability and reliability of the application when running locally, particularly for asset creation and updates.
+
+### Asset Card Display Improvements
+
+The asset cards in the kanban board view were displaying a circular "devices" icon that took up space and made the cards look cluttered. Additionally, there was no way to customize which fields were displayed on the cards.
+
+**Changes Made:**
+1. Removed the circular "devices" icon from asset cards to save space and reduce visual clutter
+2. Added support for displaying custom fields on asset cards that are marked as "visible on card" in the custom field definition
+3. Implemented user preferences for controlling which standard fields (like Asset ID, price, etc.) are displayed on cards
+4. Created a new "Card Display" preferences button in the dashboard filters to customize card appearance
+5. Stored user preferences in localStorage for persistence across sessions
+
+These changes make the asset cards more efficient and customizable, allowing users to focus on the information that matters most to them.
 
 ---

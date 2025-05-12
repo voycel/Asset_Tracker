@@ -7,10 +7,11 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Columns2, ListIcon, FilterIcon, LayoutGridIcon, TagIcon } from "lucide-react";
+import { Columns2, ListIcon, FilterIcon, LayoutGridIcon, TagIcon, Settings } from "lucide-react";
 import { AssetType, Status, Location, Assignment } from "@shared/schema";
 import { useAppContext } from "@/context/app-context";
 import { WorkflowStatusCreator } from "@/components/workflow-status-creator";
+import { AssetCardPreferences } from "@/components/asset-card-preferences";
 
 interface DashboardFiltersProps {
   activeView: "kanban" | "list";
@@ -42,6 +43,7 @@ export function DashboardFilters({
   onAssignmentFilterChange,
 }: DashboardFiltersProps) {
   const { assetTypes, statuses, locations, assignments } = useAppContext();
+  const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
 
   return (
     <div className="bg-white border-b border-neutral-200 px-4 sm:px-6 lg:px-8 py-3">
@@ -130,8 +132,24 @@ export function DashboardFilters({
 
           {/* Workflow Status Creator */}
           <WorkflowStatusCreator />
+
+          {/* Card Display Preferences */}
+          <Button
+            variant="outline"
+            className="inline-flex items-center"
+            onClick={() => setIsPreferencesOpen(true)}
+          >
+            <Settings className="h-4 w-4 mr-1" />
+            Card Display
+          </Button>
         </div>
       </div>
+
+      {/* Asset Card Preferences Modal */}
+      <AssetCardPreferences
+        isOpen={isPreferencesOpen}
+        onClose={() => setIsPreferencesOpen(false)}
+      />
     </div>
   );
 }
