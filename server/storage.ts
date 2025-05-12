@@ -11,7 +11,8 @@ import {
   assetCustomFieldValues, type AssetCustomFieldValue, type InsertAssetCustomFieldValue,
   assetLogs, type AssetLog, type InsertAssetLog,
   subscriptionPlans, type SubscriptionPlan, type InsertSubscriptionPlan,
-  subscriptions, type Subscription, type InsertSubscription
+  subscriptions, type Subscription, type InsertSubscription,
+  customers, type Customer, type InsertCustomer // Added customer imports
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, isNull, desc, sql, or, like } from "drizzle-orm";
@@ -19,8 +20,10 @@ import { eq, and, isNull, desc, sql, or, like } from "drizzle-orm";
 // Interface for all storage operations
 export interface IStorage {
   // User operations
+  // User operations
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUsers(): Promise<User[]>; // Added getUsers
   createUser(user: InsertUser): Promise<User>;
   upsertUser(user: UpsertUser): Promise<User>;
 
@@ -105,6 +108,13 @@ export interface IStorage {
   getActiveSubscription(workspaceId: number): Promise<Subscription | undefined>;
   updateSubscription(id: number, subscription: Partial<InsertSubscription>): Promise<Subscription | undefined>;
   cancelSubscription(id: number): Promise<Subscription | undefined>;
+
+  // Customer operations (New)
+  createCustomer(customer: InsertCustomer): Promise<Customer>;
+  getCustomers(workspaceId: number): Promise<Customer[]>;
+  getCustomer(id: number): Promise<Customer | undefined>;
+  updateCustomer(id: number, customer: Partial<InsertCustomer>): Promise<Customer | undefined>;
+  deleteCustomer(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -120,19 +130,68 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
+    // Make sure the id field is present, which is required by the users table
+    if (!('id' in insertUser) || !insertUser.id) {
+      throw new Error('User id is required');
+    }
+
+    // Create a properly typed user object
+    const userToInsert = {
+      id: String(insertUser.id), // Ensure id is a string
+      email: insertUser.email,
+      first_name: insertUser.first_name,
+      last_name: insertUser.last_name,
+      profile_image_url: insertUser.profile_image_url,
+      workspaceId: insertUser.workspaceId,
+      role: insertUser.role || 'viewer',
+      isWorkspaceOwner: insertUser.isWorkspaceOwner !== undefined ? insertUser.isWorkspaceOwner : false,
+      updatedAt: new Date()
+    };
+
+    const [user] = await db.insert(users).values(userToInsert).returning();
+
     return user;
   }
 
+  async getUsers(): Promise<User[]> { // Added getUsers implementation
+    return await db.select().from(users);
+  }
+
+  // Removed duplicate createUser function here
+
   async upsertUser(userData: UpsertUser): Promise<User> {
+    // Make sure the id field is present, which is required by the users table
+    if (!('id' in userData) || !userData.id) {
+      throw new Error('User id is required for upsert operation');
+    }
+
+    // Create a properly typed user object
+    const userToInsert = {
+      id: String(userData.id), // Ensure id is a string
+      email: userData.email,
+      first_name: userData.first_name,
+      last_name: userData.last_name,
+      profile_image_url: userData.profile_image_url,
+      workspaceId: userData.workspaceId,
+      role: userData.role || 'viewer',
+      isWorkspaceOwner: userData.isWorkspaceOwner !== undefined ? userData.isWorkspaceOwner : false,
+      updatedAt: new Date()
+    };
+
     const [user] = await db
       .insert(users)
-      .values(userData)
+      .values(userToInsert) // Pass the properly typed user object
       .onConflictDoUpdate({
-        target: users.id,
-        set: {
-          ...userData,
-          updatedAt: new Date(),
+        target: users.id, // Conflict on the id column
+        set: { // Set only the fields that should be updated on conflict (excluding id and createdAt)
+          email: userData.email,
+          first_name: userData.first_name,
+          last_name: userData.last_name,
+          profile_image_url: userData.profile_image_url,
+          role: userData.role || 'viewer',
+          isWorkspaceOwner: userData.isWorkspaceOwner !== undefined ? userData.isWorkspaceOwner : false,
+          workspaceId: userData.workspaceId,
+          updatedAt: new Date()
         },
       })
       .returning();
@@ -185,7 +244,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAssetType(id: number): Promise<boolean> {
     const result = await db.delete(assetTypes).where(eq(assetTypes.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0; // Handle potential null
   }
 
   // Custom Field Definition operations
@@ -213,7 +272,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCustomFieldDefinition(id: number): Promise<boolean> {
     const result = await db.delete(customFieldDefinitions).where(eq(customFieldDefinitions.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0; // Handle potential null
   }
 
   // Manufacturer operations
@@ -247,7 +306,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteManufacturer(id: number): Promise<boolean> {
     const result = await db.delete(manufacturers).where(eq(manufacturers.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0; // Handle potential null
   }
 
   // Status operations
@@ -294,7 +353,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteStatus(id: number): Promise<boolean> {
     const result = await db.delete(statuses).where(eq(statuses.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0; // Handle potential null
   }
 
   // Location operations
@@ -341,7 +400,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteLocation(id: number): Promise<boolean> {
     const result = await db.delete(locations).where(eq(locations.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0; // Handle potential null
   }
 
   // Assignment operations
@@ -374,7 +433,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAssignment(id: number): Promise<boolean> {
     const result = await db.delete(assignments).where(eq(assignments.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0; // Handle potential null
   }
 
   // Asset operations
@@ -384,39 +443,41 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAssets(workspaceId?: number, assetTypeId?: number, statusId?: number, locationId?: number, assignmentId?: number, search?: string): Promise<Asset[]> {
-    let query = db.select().from(assets).where(eq(assets.isArchived, false));
+    const conditions = [eq(assets.isArchived, false)];
 
-    if (workspaceId) {
-      query = query.where(or(eq(assets.workspaceId, workspaceId), isNull(assets.workspaceId)));
+    if (workspaceId !== undefined) {
+      conditions.push(or(eq(assets.workspaceId, workspaceId), isNull(assets.workspaceId))!);
     }
 
-    if (assetTypeId) {
-      query = query.where(eq(assets.assetTypeId, assetTypeId));
+    if (assetTypeId !== undefined) {
+      conditions.push(eq(assets.assetTypeId, assetTypeId));
     }
 
-    if (statusId) {
-      query = query.where(eq(assets.currentStatusId, statusId));
+    if (statusId !== undefined) {
+      conditions.push(eq(assets.currentStatusId, statusId));
     }
 
-    if (locationId) {
-      query = query.where(eq(assets.currentLocationId, locationId));
+    if (locationId !== undefined) {
+      conditions.push(eq(assets.currentLocationId, locationId));
     }
 
-    if (assignmentId) {
-      query = query.where(eq(assets.currentAssignmentId, assignmentId));
+    if (assignmentId !== undefined) {
+      conditions.push(eq(assets.currentAssignmentId, assignmentId));
     }
 
     if (search) {
-      query = query.where(
+      conditions.push(
         or(
           like(assets.name, `%${search}%`),
           like(assets.uniqueIdentifier, `%${search}%`),
           like(assets.notes, `%${search}%`)
-        )
+        )!
       );
     }
 
-    return await query.orderBy(desc(assets.updatedAt));
+    return await db.select().from(assets)
+      .where(and(...conditions))
+      .orderBy(desc(assets.updatedAt));
   }
 
   async getAsset(id: number): Promise<Asset | undefined> {
@@ -436,12 +497,12 @@ export class DatabaseStorage implements IStorage {
     const result = await db.update(assets)
       .set({ isArchived: true, updatedAt: new Date() })
       .where(eq(assets.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0; // Handle potential null
   }
 
   async deleteAsset(id: number): Promise<boolean> {
     const result = await db.delete(assets).where(eq(assets.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0; // Handle potential null
   }
 
   // Asset Custom Field Value operations
@@ -464,7 +525,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAssetCustomFieldValue(id: number): Promise<boolean> {
     const result = await db.delete(assetCustomFieldValues).where(eq(assetCustomFieldValues.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0; // Handle potential null
   }
 
   // Asset Log operations
@@ -507,7 +568,16 @@ export class DatabaseStorage implements IStorage {
       ))
       .groupBy(statuses.id, statuses.name);
 
-    return { total, byStatus };
+    // Filter out null status IDs and names before returning
+    const filteredByStatus = byStatus
+      .filter(item => item.statusId !== null && item.statusName !== null)
+      .map(item => ({
+        statusId: item.statusId as number, // Type assertion after filtering
+        statusName: item.statusName as string, // Type assertion after filtering
+        count: item.count
+      }));
+
+    return { total, byStatus: filteredByStatus };
   }
 
   // Subscription Plan operations
@@ -535,7 +605,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSubscriptionPlan(id: number): Promise<boolean> {
     const result = await db.delete(subscriptionPlans).where(eq(subscriptionPlans.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0; // Handle potential null
   }
 
   // Subscription operations
@@ -584,6 +654,34 @@ export class DatabaseStorage implements IStorage {
       .where(eq(subscriptions.id, id))
       .returning();
     return canceledSubscription;
+  }
+
+  // Customer operations (New Implementations)
+  async createCustomer(customer: InsertCustomer): Promise<Customer> {
+    const [newCustomer] = await db.insert(customers).values(customer).returning();
+    return newCustomer;
+  }
+
+  async getCustomers(workspaceId: number): Promise<Customer[]> {
+    return await db.select().from(customers).where(eq(customers.workspaceId, workspaceId));
+  }
+
+  async getCustomer(id: number): Promise<Customer | undefined> {
+    const [customer] = await db.select().from(customers).where(eq(customers.id, id));
+    return customer;
+  }
+
+  async updateCustomer(id: number, customer: Partial<InsertCustomer>): Promise<Customer | undefined> {
+    const [updatedCustomer] = await db.update(customers)
+      .set({ ...customer, updatedAt: new Date() })
+      .where(eq(customers.id, id))
+      .returning();
+    return updatedCustomer;
+  }
+
+  async deleteCustomer(id: number): Promise<boolean> {
+    const result = await db.delete(customers).where(eq(customers.id, id));
+    return (result.rowCount ?? 0) > 0; // Handle potential null
   }
 }
 
