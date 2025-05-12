@@ -12,6 +12,7 @@ import AssetTypes from "@/pages/asset-types";
 import Configuration from "@/pages/configuration";
 import ActivityLog from "@/pages/activity-log";
 import ExportData from "@/pages/export-data";
+import Subscription from "@/pages/subscription";
 import Login from "@/pages/login";
 import Landing from "@/pages/landing";
 import { useMediaQuery } from "@/hooks/use-mobile";
@@ -70,6 +71,9 @@ function Router() {
       </Route>
       <Route path="/export">
         {() => <ProtectedRoute component={ExportData} />}
+      </Route>
+      <Route path="/subscription">
+        {() => <ProtectedRoute component={Subscription} />}
       </Route>
       <Route component={NotFound} />
     </Switch>

@@ -1,4 +1,4 @@
-import { 
+import {
   users, type User, type InsertUser, type UpsertUser,
   workspaces, type Workspace, type InsertWorkspace,
   assetTypes, type AssetType, type InsertAssetType,
@@ -9,7 +9,9 @@ import {
   assignments, type Assignment, type InsertAssignment,
   assets, type Asset, type InsertAsset,
   assetCustomFieldValues, type AssetCustomFieldValue, type InsertAssetCustomFieldValue,
-  assetLogs, type AssetLog, type InsertAssetLog
+  assetLogs, type AssetLog, type InsertAssetLog,
+  subscriptionPlans, type SubscriptionPlan, type InsertSubscriptionPlan,
+  subscriptions, type Subscription, type InsertSubscription
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, isNull, desc, sql, or, like } from "drizzle-orm";
@@ -89,6 +91,20 @@ export interface IStorage {
 
   // Stats operations
   getAssetStats(workspaceId?: number): Promise<{ total: number, byStatus: { statusId: number, statusName: string, count: number }[] }>;
+
+  // Subscription Plan operations
+  createSubscriptionPlan(plan: InsertSubscriptionPlan): Promise<SubscriptionPlan>;
+  getSubscriptionPlans(): Promise<SubscriptionPlan[]>;
+  getSubscriptionPlan(id: number): Promise<SubscriptionPlan | undefined>;
+  updateSubscriptionPlan(id: number, plan: Partial<InsertSubscriptionPlan>): Promise<SubscriptionPlan | undefined>;
+  deleteSubscriptionPlan(id: number): Promise<boolean>;
+
+  // Subscription operations
+  createSubscription(subscription: InsertSubscription): Promise<Subscription>;
+  getSubscriptions(workspaceId?: number): Promise<Subscription[]>;
+  getActiveSubscription(workspaceId: number): Promise<Subscription | undefined>;
+  updateSubscription(id: number, subscription: Partial<InsertSubscription>): Promise<Subscription | undefined>;
+  cancelSubscription(id: number): Promise<Subscription | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -107,7 +123,7 @@ export class DatabaseStorage implements IStorage {
     const [user] = await db.insert(users).values(insertUser).returning();
     return user;
   }
-  
+
   async upsertUser(userData: UpsertUser): Promise<User> {
     const [user] = await db
       .insert(users)
@@ -369,27 +385,27 @@ export class DatabaseStorage implements IStorage {
 
   async getAssets(workspaceId?: number, assetTypeId?: number, statusId?: number, locationId?: number, assignmentId?: number, search?: string): Promise<Asset[]> {
     let query = db.select().from(assets).where(eq(assets.isArchived, false));
-    
+
     if (workspaceId) {
       query = query.where(or(eq(assets.workspaceId, workspaceId), isNull(assets.workspaceId)));
     }
-    
+
     if (assetTypeId) {
       query = query.where(eq(assets.assetTypeId, assetTypeId));
     }
-    
+
     if (statusId) {
       query = query.where(eq(assets.currentStatusId, statusId));
     }
-    
+
     if (locationId) {
       query = query.where(eq(assets.currentLocationId, locationId));
     }
-    
+
     if (assignmentId) {
       query = query.where(eq(assets.currentAssignmentId, assignmentId));
     }
-    
+
     if (search) {
       query = query.where(
         or(
@@ -399,7 +415,7 @@ export class DatabaseStorage implements IStorage {
         )
       );
     }
-    
+
     return await query.orderBy(desc(assets.updatedAt));
   }
 
@@ -473,9 +489,9 @@ export class DatabaseStorage implements IStorage {
         eq(assets.isArchived, false),
         workspaceId ? or(eq(assets.workspaceId, workspaceId), isNull(assets.workspaceId)) : undefined
       ));
-    
+
     const total = totalResult?.count || 0;
-    
+
     // Get assets grouped by status
     const byStatus = await db
       .select({
@@ -490,8 +506,84 @@ export class DatabaseStorage implements IStorage {
         workspaceId ? or(eq(assets.workspaceId, workspaceId), isNull(assets.workspaceId)) : undefined
       ))
       .groupBy(statuses.id, statuses.name);
-    
+
     return { total, byStatus };
+  }
+
+  // Subscription Plan operations
+  async createSubscriptionPlan(plan: InsertSubscriptionPlan): Promise<SubscriptionPlan> {
+    const [newPlan] = await db.insert(subscriptionPlans).values(plan).returning();
+    return newPlan;
+  }
+
+  async getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
+    return await db.select().from(subscriptionPlans);
+  }
+
+  async getSubscriptionPlan(id: number): Promise<SubscriptionPlan | undefined> {
+    const [plan] = await db.select().from(subscriptionPlans).where(eq(subscriptionPlans.id, id));
+    return plan;
+  }
+
+  async updateSubscriptionPlan(id: number, plan: Partial<InsertSubscriptionPlan>): Promise<SubscriptionPlan | undefined> {
+    const [updatedPlan] = await db.update(subscriptionPlans)
+      .set({ ...plan, updatedAt: new Date() })
+      .where(eq(subscriptionPlans.id, id))
+      .returning();
+    return updatedPlan;
+  }
+
+  async deleteSubscriptionPlan(id: number): Promise<boolean> {
+    const result = await db.delete(subscriptionPlans).where(eq(subscriptionPlans.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Subscription operations
+  async createSubscription(subscription: InsertSubscription): Promise<Subscription> {
+    const [newSubscription] = await db.insert(subscriptions).values(subscription).returning();
+    return newSubscription;
+  }
+
+  async getSubscriptions(workspaceId?: number): Promise<Subscription[]> {
+    if (workspaceId) {
+      return await db.select().from(subscriptions).where(eq(subscriptions.workspaceId, workspaceId));
+    }
+    return await db.select().from(subscriptions);
+  }
+
+  async getActiveSubscription(workspaceId: number): Promise<Subscription | undefined> {
+    const [subscription] = await db.select()
+      .from(subscriptions)
+      .where(
+        and(
+          eq(subscriptions.workspaceId, workspaceId),
+          eq(subscriptions.status, 'active')
+        )
+      )
+      .orderBy(desc(subscriptions.startDate))
+      .limit(1);
+
+    return subscription;
+  }
+
+  async updateSubscription(id: number, subscription: Partial<InsertSubscription>): Promise<Subscription | undefined> {
+    const [updatedSubscription] = await db.update(subscriptions)
+      .set({ ...subscription, updatedAt: new Date() })
+      .where(eq(subscriptions.id, id))
+      .returning();
+    return updatedSubscription;
+  }
+
+  async cancelSubscription(id: number): Promise<Subscription | undefined> {
+    const [canceledSubscription] = await db.update(subscriptions)
+      .set({
+        status: 'canceled',
+        canceledAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(subscriptions.id, id))
+      .returning();
+    return canceledSubscription;
   }
 }
 

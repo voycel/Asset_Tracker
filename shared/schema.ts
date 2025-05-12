@@ -82,7 +82,35 @@ export const assignments = pgTable("assignments", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Users - Updated to work with Replit Auth
+// Subscription Plans
+export const subscriptionPlans = pgTable("subscription_plans", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(), // 'Free', 'Light', 'Pro', 'Enterprise'
+  description: text("description").notNull(),
+  price: integer("price").notNull(), // Price in cents
+  billingCycle: text("billing_cycle").notNull(), // 'monthly', 'yearly'
+  features: jsonb("features").notNull(), // Array of features included in this plan
+  assetLimit: integer("asset_limit"), // Maximum number of assets allowed (null for unlimited)
+  userLimit: integer("user_limit"), // Maximum number of users allowed (null for unlimited)
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Subscriptions
+export const subscriptions = pgTable("subscriptions", {
+  id: serial("id").primaryKey(),
+  workspaceId: integer("workspace_id").references(() => workspaces.id, { onDelete: "cascade" }).notNull(),
+  planId: integer("plan_id").references(() => subscriptionPlans.id, { onDelete: "restrict" }).notNull(),
+  status: text("status").notNull(), // 'active', 'canceled', 'past_due', 'trialing'
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date"),
+  trialEndsAt: timestamp("trial_ends_at"),
+  canceledAt: timestamp("canceled_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Users - Updated to work with Replit Auth and Subscriptions
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().notNull(),
   workspaceId: integer("workspace_id").references(() => workspaces.id, { onDelete: "cascade" }),
@@ -91,6 +119,7 @@ export const users = pgTable("users", {
   last_name: varchar("last_name"),
   profile_image_url: varchar("profile_image_url"),
   role: text("role").default("viewer"), // Admin, Editor, Viewer
+  isWorkspaceOwner: boolean("is_workspace_owner").default(false), // Whether this user is the owner of their workspace
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -179,6 +208,25 @@ export const assetCustomFieldValuesRelations = relations(assetCustomFieldValues,
   }),
 }));
 
+export const workspacesRelations = relations(workspaces, ({ many }) => ({
+  subscriptions: many(subscriptions),
+}));
+
+export const subscriptionPlansRelations = relations(subscriptionPlans, ({ many }) => ({
+  subscriptions: many(subscriptions),
+}));
+
+export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
+  workspace: one(workspaces, {
+    fields: [subscriptions.workspaceId],
+    references: [workspaces.id],
+  }),
+  plan: one(subscriptionPlans, {
+    fields: [subscriptions.planId],
+    references: [subscriptionPlans.id],
+  }),
+}));
+
 // Zod Schemas for insertion
 export const insertWorkspaceSchema = createInsertSchema(workspaces).omit({ id: true, createdAt: true });
 export const insertAssetTypeSchema = createInsertSchema(assetTypes).omit({ id: true, createdAt: true });
@@ -188,6 +236,9 @@ export const insertStatusSchema = createInsertSchema(statuses).omit({ id: true, 
 export const insertLocationSchema = createInsertSchema(locations).omit({ id: true, createdAt: true });
 export const insertAssignmentSchema = createInsertSchema(assignments).omit({ id: true, createdAt: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertSubscriptionPlanSchema = createInsertSchema(subscriptionPlans).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({ id: true, createdAt: true, updatedAt: true });
+
 // Base schema for assets
 const baseAssetSchema = createInsertSchema(assets).omit({ id: true, createdAt: true, updatedAt: true });
 
@@ -231,6 +282,12 @@ export type InsertAssignment = z.infer<typeof insertAssignmentSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type UpsertUser = typeof users.$inferInsert;
+
+export type SubscriptionPlan = typeof subscriptionPlans.$inferSelect;
+export type InsertSubscriptionPlan = z.infer<typeof insertSubscriptionPlanSchema>;
+
+export type Subscription = typeof subscriptions.$inferSelect;
+export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
 
 export type Asset = typeof assets.$inferSelect;
 export type InsertAsset = z.infer<typeof insertAssetSchema>;

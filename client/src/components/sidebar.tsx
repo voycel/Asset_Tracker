@@ -12,6 +12,7 @@ import {
   LogOutIcon,
   MenuIcon,
   XIcon,
+  CreditCardIcon,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -30,6 +31,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
     { name: "Configuration", href: "/configuration", icon: SettingsIcon },
     { name: "Activity Log", href: "/activity-log", icon: ClockIcon },
     { name: "Export Data", href: "/export", icon: DownloadIcon },
+    { name: "Subscription", href: "/subscription", icon: CreditCardIcon },
   ];
 
   return (
@@ -124,7 +126,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
           <MenuIcon className="h-6 w-6" />
         </button>
       )}
-      
+
       {/* Floating action button for adding new asset */}
       <button
         className="fixed bottom-4 right-4 md:hidden z-50 bg-primary-500 text-white p-3 rounded-full shadow-lg"
