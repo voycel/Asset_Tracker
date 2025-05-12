@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   Workspace, AssetType, CustomFieldDefinition, Manufacturer, 
   Status, Location, Assignment, User
@@ -28,6 +29,7 @@ interface AppProviderProps {
 }
 
 export const AppProvider = ({ children }: AppProviderProps) => {
+  const { user } = useAuth();
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
@@ -36,28 +38,11 @@ export const AppProvider = ({ children }: AppProviderProps) => {
   const [statuses, setStatuses] = useState<Status[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [user, setUser] = useState<User | null>(null);
 
   const fetchData = async () => {
     try {
-      // Fetch user
-      try {
-        const userResponse = await fetch("/api/auth/user");
-        if (userResponse.ok) {
-          const userData = await userResponse.json();
-          // Map user data to match our expected schema
-          const mappedUser = {
-            ...userData,
-            firstName: userData.first_name,
-            lastName: userData.last_name,
-            profileImageUrl: userData.profile_image_url
-          };
-          setUser(mappedUser);
-        }
-      } catch (authError) {
-        console.error("Auth error:", authError);
-        setUser(null);
-      }
+      // Fetch user - We're now using the react-query hook for authentication
+      // No need to fetch user data here anymore
       
       // Fetch workspaces
       const workspacesResponse = await apiRequest("GET", "/api/workspaces");

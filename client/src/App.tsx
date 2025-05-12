@@ -85,10 +85,10 @@ function App() {
 
   useEffect(() => {
     // Redirect to landing page on initial load
-    if (location === "/") {
+    if (location === "/" && !isAuthPage) {
       setLocation("/landing");
     }
-  }, [location, setLocation]);
+  }, [location, setLocation, isAuthPage]);
 
   return (
     <QueryClientProvider client={queryClient}>
