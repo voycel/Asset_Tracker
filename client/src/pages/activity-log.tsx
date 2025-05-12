@@ -198,8 +198,8 @@ export default function ActivityLog() {
             
             <div className="flex items-center gap-2">
               <Select
-                value={selectedAssetId?.toString() || ""}
-                onValueChange={(value) => setSelectedAssetId(value ? parseInt(value) : null)}
+                value={selectedAssetId?.toString() || "all"}
+                onValueChange={(value) => setSelectedAssetId(value === "all" ? null : parseInt(value))}
               >
                 <SelectTrigger className="w-[220px]">
                   <SelectValue placeholder="Filter by asset" />

@@ -432,7 +432,7 @@ export function NewAssetModal({
                       
                       {field.fieldType === 'Dropdown' && field.dropdownOptions && (
                         <Select
-                          value={customFieldValues[field.id] || ""}
+                          value={customFieldValues[field.id] || (field.dropdownOptions && field.dropdownOptions.length > 0 ? field.dropdownOptions[0] : "default")}
                           onValueChange={(value) => handleCustomFieldChange(field.id, value, field.fieldType)}
                           disabled={loading}
                         >
@@ -506,7 +506,7 @@ export function NewAssetModal({
                     Assigned To
                   </Label>
                   <Select
-                    onValueChange={(value) => setValue("currentAssignmentId", parseInt(value))}
+                    onValueChange={(value) => setValue("currentAssignmentId", value === "none" ? null : parseInt(value))}
                     disabled={loading}
                   >
                     <SelectTrigger id="assignment" className="w-full">
