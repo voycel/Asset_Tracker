@@ -96,11 +96,11 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
         <div className="border-t border-neutral-200 p-4">
           <div className="flex items-center">
             <div className="h-10 w-10 rounded-full bg-primary-200 flex items-center justify-center text-primary-700 font-medium">
-              {user?.displayName?.charAt(0) || 'U'}
+              {user?.first_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
             </div>
             <div className="ml-3">
               <p className="text-sm font-medium text-neutral-800">
-                {user?.displayName || 'User'}
+                {user?.first_name ? `${user.first_name} ${user.last_name || ''}` : (user?.email || 'User')}
               </p>
               <p className="text-xs text-neutral-500">
                 {user?.role === 'admin' ? 'Administrator' : 'User'}

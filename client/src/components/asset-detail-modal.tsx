@@ -401,13 +401,18 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated }: Ass
                               </span>
                             </div>
                             <div className="mt-1 text-xs text-neutral-500">
-                              <span>By {user?.displayName || 'System'}</span>
+                              <span>By {user?.first_name ? `${user.first_name} ${user.last_name || ''}` : (user?.email || 'System')}</span>
                               <span className="mx-1">•</span>
                               <span>{formatDateTime(log.timestamp)}</span>
                             </div>
                             {log.detailsJson && (
                               <p className="mt-1 text-sm text-neutral-600">
-                                {log.detailsJson.message}
+                                {typeof log.detailsJson === 'string' 
+                                  ? log.detailsJson 
+                                  : (typeof log.detailsJson === 'object' && log.detailsJson !== null && 'message' in log.detailsJson)
+                                    ? (log.detailsJson as any).message
+                                    : JSON.stringify(log.detailsJson)
+                                }
                               </p>
                             )}
                           </div>
