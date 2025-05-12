@@ -152,14 +152,14 @@ export default function ExportData() {
                   <div className="space-y-2">
                     <Label htmlFor="assetType">Asset Type</Label>
                     <Select
-                      value={assetTypeFilter?.toString() || ""}
-                      onValueChange={(value) => setAssetTypeFilter(value ? parseInt(value) : null)}
+                      value={assetTypeFilter?.toString() || "all"}
+                      onValueChange={(value) => setAssetTypeFilter(value === "all" ? null : parseInt(value))}
                     >
                       <SelectTrigger id="assetType">
                         <SelectValue placeholder="All Asset Types" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All Asset Types</SelectItem>
+                        <SelectItem value="all">All Asset Types</SelectItem>
                         {assetTypes.map((type) => (
                           <SelectItem key={type.id} value={type.id.toString()}>
                             {type.name}
@@ -172,14 +172,14 @@ export default function ExportData() {
                   <div className="space-y-2">
                     <Label htmlFor="status">Status</Label>
                     <Select
-                      value={statusFilter?.toString() || ""}
-                      onValueChange={(value) => setStatusFilter(value ? parseInt(value) : null)}
+                      value={statusFilter?.toString() || "all"}
+                      onValueChange={(value) => setStatusFilter(value === "all" ? null : parseInt(value))}
                     >
                       <SelectTrigger id="status">
                         <SelectValue placeholder="All Statuses" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All Statuses</SelectItem>
+                        <SelectItem value="all">All Statuses</SelectItem>
                         {statuses.map((status) => (
                           <SelectItem key={status.id} value={status.id.toString()}>
                             {status.name}
@@ -192,14 +192,14 @@ export default function ExportData() {
                   <div className="space-y-2">
                     <Label htmlFor="location">Location</Label>
                     <Select
-                      value={locationFilter?.toString() || ""}
-                      onValueChange={(value) => setLocationFilter(value ? parseInt(value) : null)}
+                      value={locationFilter?.toString() || "all"}
+                      onValueChange={(value) => setLocationFilter(value === "all" ? null : parseInt(value))}
                     >
                       <SelectTrigger id="location">
                         <SelectValue placeholder="All Locations" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All Locations</SelectItem>
+                        <SelectItem value="all">All Locations</SelectItem>
                         {locations.map((location) => (
                           <SelectItem key={location.id} value={location.id.toString()}>
                             {location.name}
@@ -212,14 +212,14 @@ export default function ExportData() {
                   <div className="space-y-2">
                     <Label htmlFor="assignment">Assignment</Label>
                     <Select
-                      value={assignmentFilter?.toString() || ""}
-                      onValueChange={(value) => setAssignmentFilter(value ? parseInt(value) : null)}
+                      value={assignmentFilter?.toString() || "all"}
+                      onValueChange={(value) => setAssignmentFilter(value === "all" ? null : parseInt(value))}
                     >
                       <SelectTrigger id="assignment">
                         <SelectValue placeholder="All Assignments" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All Assignments</SelectItem>
+                        <SelectItem value="all">All Assignments</SelectItem>
                         {assignments.map((assignment) => (
                           <SelectItem key={assignment.id} value={assignment.id.toString()}>
                             {assignment.name}
