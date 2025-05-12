@@ -47,16 +47,36 @@ export default function ActivityLog() {
     try {
       setLoading(true);
       
-      if (!selectedAssetId) {
-        // If no asset is selected, we can't fetch logs because the API requires an asset ID
-        setLogs([]);
-        return;
+      if (selectedAssetId) {
+        // Fetch logs for a specific asset
+        const url = `/api/assets/${selectedAssetId}/logs`;
+        const response = await apiRequest("GET", url);
+        const data = await response.json();
+        setLogs(data);
+      } else {
+        // "All Assets" is selected
+        // First make sure we have the assets list
+        if (assets.length === 0) {
+          await fetchAssets();
+        }
+        
+        // Fetch logs for each asset and combine them
+        let allLogs: any[] = [];
+        for (const asset of assets) {
+          try {
+            const url = `/api/assets/${asset.id}/logs`;
+            const response = await apiRequest("GET", url);
+            const assetLogs = await response.json();
+            allLogs = [...allLogs, ...assetLogs];
+          } catch (e) {
+            console.error(`Error fetching logs for asset ${asset.id}:`, e);
+          }
+        }
+        
+        // Sort all logs by timestamp, newest first
+        allLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        setLogs(allLogs);
       }
-      
-      const url = `/api/assets/${selectedAssetId}/logs`;
-      const response = await apiRequest("GET", url);
-      const data = await response.json();
-      setLogs(data);
     } catch (error) {
       console.error("Error fetching logs:", error);
       toast({
@@ -169,13 +189,9 @@ export default function ActivityLog() {
     },
   ];
 
-  const filteredLogs = logs.filter(log => {
-    // If no asset is selected, include all logs
-    if (selectedAssetId === null) return true;
-    
-    // If an asset is selected, only include logs for that asset
-    return log.assetId === selectedAssetId;
-  });
+  // No need to filter logs by asset since we're already fetching the right logs
+  // We just pass all the logs for further filtering by search query
+  const filteredLogs = logs;
 
   // Further filter based on search query
   const searchedLogs = filteredLogs.filter(log => {
