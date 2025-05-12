@@ -45,7 +45,14 @@ export const AppProvider = ({ children }: AppProviderProps) => {
         const userResponse = await fetch("/api/auth/user");
         if (userResponse.ok) {
           const userData = await userResponse.json();
-          setUser(userData);
+          // Map user data to match our expected schema
+          const mappedUser = {
+            ...userData,
+            firstName: userData.first_name,
+            lastName: userData.last_name,
+            profileImageUrl: userData.profile_image_url
+          };
+          setUser(mappedUser);
         }
       } catch (authError) {
         console.error("Auth error:", authError);

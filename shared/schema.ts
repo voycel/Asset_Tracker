@@ -87,9 +87,9 @@ export const users = pgTable("users", {
   id: varchar("id").primaryKey().notNull(),
   workspaceId: integer("workspace_id").references(() => workspaces.id, { onDelete: "cascade" }),
   email: varchar("email").unique(),
-  firstName: varchar("first_name"),
-  lastName: varchar("last_name"),
-  profileImageUrl: varchar("profile_image_url"),
+  first_name: varchar("first_name"),
+  last_name: varchar("last_name"),
+  profile_image_url: varchar("profile_image_url"),
   role: text("role").default("viewer"), // Admin, Editor, Viewer
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
