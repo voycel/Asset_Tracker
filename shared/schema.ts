@@ -141,6 +141,20 @@ export const assets = pgTable("assets", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   isArchived: boolean("is_archived").default(false),
+  currentCustomerId: integer("current_customer_id").references(() => customers.id, { onDelete: "set null" }), // New field
+});
+
+// Customers Table (New)
+export const customers = pgTable("customers", {
+  id: serial("id").primaryKey(),
+  workspaceId: integer("workspace_id").references(() => workspaces.id, { onDelete: "cascade" }).notNull(),
+  name: text("name").notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  address: text("address"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Asset Custom Field Values
@@ -162,8 +176,20 @@ export const assetLogs = pgTable("asset_logs", {
   assetId: integer("asset_id").references(() => assets.id, { onDelete: "cascade" }).notNull(),
   userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
   timestamp: timestamp("timestamp").defaultNow(),
-  actionType: text("action_type").notNull(), // 'CREATE', 'UPDATE_STATUS', 'UPDATE_LOCATION', 'ASSIGNED', 'CUSTOM_FIELD_UPDATE'
+  actionType: text("action_type").notNull(), // 'CREATE', 'UPDATE_STATUS', 'UPDATE_LOCATION', 'ASSIGNED', 'CUSTOM_FIELD_UPDATE', 'RETURN_RECEIVED', 'RMA_INITIATED', 'RMA_COMPLETED', 'SHIPPED_TO_CUSTOMER', 'DELIVERED_TO_CUSTOMER', 'DEMO_STARTED', 'DEMO_ENDED', 'CUSTOMER_ASSIGNED', 'RELATIONSHIP_CREATED', 'RELATIONSHIP_DELETED'
   detailsJson: jsonb("details_json"), // To store what changed (old/new values)
+});
+
+// Asset Relationships
+export const assetRelationships = pgTable("asset_relationships", {
+  id: serial("id").primaryKey(),
+  workspaceId: integer("workspace_id").references(() => workspaces.id, { onDelete: "cascade" }),
+  sourceAssetId: integer("source_asset_id").references(() => assets.id, { onDelete: "cascade" }).notNull(),
+  targetAssetId: integer("target_asset_id").references(() => assets.id, { onDelete: "cascade" }).notNull(),
+  relationshipType: text("relationship_type").notNull(), // 'part_of', 'accessory_to', 'replacement_for', 'depends_on', 'paired_with', 'parent_of', 'child_of', 'connected_to', 'installed_in', 'contains'
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Relations
@@ -195,6 +221,20 @@ export const assetsRelations = relations(assets, ({ one, many }) => ({
   }),
   customFieldValues: many(assetCustomFieldValues),
   logs: many(assetLogs),
+  customer: one(customers, {
+    fields: [assets.currentCustomerId],
+    references: [customers.id],
+  }),
+  sourceRelationships: many(assetRelationships, { relationName: "sourceAsset" }),
+  targetRelationships: many(assetRelationships, { relationName: "targetAsset" }),
+}));
+
+export const customersRelations = relations(customers, ({ many, one }) => ({ // New relations
+  assets: many(assets),
+  workspace: one(workspaces, {
+    fields: [customers.workspaceId],
+    references: [workspaces.id],
+  }),
 }));
 
 export const assetCustomFieldValuesRelations = relations(assetCustomFieldValues, ({ one }) => ({
@@ -227,6 +267,21 @@ export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
   }),
 }));
 
+export const assetRelationshipsRelations = relations(assetRelationships, ({ one }) => ({
+  workspace: one(workspaces, {
+    fields: [assetRelationships.workspaceId],
+    references: [workspaces.id],
+  }),
+  sourceAsset: one(assets, {
+    fields: [assetRelationships.sourceAssetId],
+    references: [assets.id],
+  }),
+  targetAsset: one(assets, {
+    fields: [assetRelationships.targetAssetId],
+    references: [assets.id],
+  }),
+}));
+
 // Zod Schemas for insertion
 export const insertWorkspaceSchema = createInsertSchema(workspaces).omit({ id: true, createdAt: true });
 export const insertAssetTypeSchema = createInsertSchema(assetTypes).omit({ id: true, createdAt: true });
@@ -235,9 +290,11 @@ export const insertManufacturerSchema = createInsertSchema(manufacturers).omit({
 export const insertStatusSchema = createInsertSchema(statuses).omit({ id: true, createdAt: true });
 export const insertLocationSchema = createInsertSchema(locations).omit({ id: true, createdAt: true });
 export const insertAssignmentSchema = createInsertSchema(assignments).omit({ id: true, createdAt: true });
+export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true, updatedAt: true }); // New schema
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertSubscriptionPlanSchema = createInsertSchema(subscriptionPlans).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertAssetRelationshipSchema = createInsertSchema(assetRelationships).omit({ id: true, createdAt: true, updatedAt: true });
 
 // Base schema for assets
 const baseAssetSchema = createInsertSchema(assets).omit({ id: true, createdAt: true, updatedAt: true });
@@ -279,6 +336,9 @@ export type InsertLocation = z.infer<typeof insertLocationSchema>;
 export type Assignment = typeof assignments.$inferSelect;
 export type InsertAssignment = z.infer<typeof insertAssignmentSchema>;
 
+export type Customer = typeof customers.$inferSelect; // New type
+export type InsertCustomer = z.infer<typeof insertCustomerSchema>; // New type
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type UpsertUser = typeof users.$inferInsert;
@@ -297,3 +357,6 @@ export type InsertAssetCustomFieldValue = z.infer<typeof insertAssetCustomFieldV
 
 export type AssetLog = typeof assetLogs.$inferSelect;
 export type InsertAssetLog = z.infer<typeof insertAssetLogSchema>;
+
+export type AssetRelationship = typeof assetRelationships.$inferSelect;
+export type InsertAssetRelationship = z.infer<typeof insertAssetRelationshipSchema>;

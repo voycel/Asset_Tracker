@@ -8,7 +8,8 @@ import {
   insertManufacturerSchema, insertStatusSchema, insertLocationSchema,
   insertAssignmentSchema, insertUserSchema, insertAssetSchema,
   insertAssetCustomFieldValueSchema, insertAssetLogSchema,
-  insertSubscriptionPlanSchema, insertSubscriptionSchema
+  insertSubscriptionPlanSchema, insertSubscriptionSchema,
+  insertCustomerSchema, insertAssetRelationshipSchema // Added schemas
 } from '@shared/schema';
 import { ZodError } from "zod";
 import { createCheckoutSession, setupStripePrices } from './stripe';
@@ -480,25 +481,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Users API
-  app.get('/api/users', async (req, res) => {
+  app.get('/api/users', isAuthenticated, async (req: any, res) => { // Added isAuthenticated middleware
     try {
-      const users = await storage.getUsers();
-      res.json(users.map(user => {
-        // Don't return password
-        const { password, ...userWithoutPassword } = user;
-        return userWithoutPassword;
-      }));
+      const workspaceId = req.user.workspaceId;
+      if (!workspaceId) {
+        return res.status(400).json({ message: 'Workspace ID not found for user.' });
+      }
+      // Fetch users belonging to the same workspace
+      const users = await storage.getUsers(workspaceId);
+      // Users fetched from storage already exclude password if schema is set up correctly
+      res.json(users);
     } catch (error) {
+      console.error('Error fetching users:', error);
       res.status(500).json({ message: 'Error fetching users' });
     }
   });
 
-  app.post('/api/users', validateRequest(insertUserSchema), async (req, res) => {
+  app.post('/api/users', isAuthenticated, validateRequest(insertUserSchema), async (req: any, res) => { // Added isAuthenticated
     try {
-      const user = await storage.createUser(req.body);
-      const { password, ...userWithoutPassword } = user;
-      res.status(201).json(userWithoutPassword);
+      const workspaceId = req.user.workspaceId;
+      if (!workspaceId) {
+        return res.status(400).json({ message: 'Workspace ID not found for user.' });
+      }
+      // TODO: Add logic to handle user creation securely (hashing password, etc.)
+      // For now, assume password handling happens elsewhere or is not needed for this endpoint
+      const userData = { ...req.body, workspaceId }; // Ensure user is added to the correct workspace
+      const user = await storage.createUser(userData);
+      // User returned from storage should already exclude password
+      res.status(201).json(user);
     } catch (error) {
+      console.error('Error creating user:', error);
       res.status(500).json({ message: 'Error creating user' });
     }
   });
@@ -782,6 +794,283 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Customer Assignment API
+  app.patch('/api/assets/:id/customer', async (req, res) => {
+    try {
+      const { customerId, userId } = req.body;
+      const assetId = Number(req.params.id);
+
+      // Validate inputs
+      if (isNaN(assetId)) {
+        return res.status(400).json({ message: 'Invalid asset ID' });
+      }
+
+      // If customerId is not null, validate it exists
+      if (customerId !== null) {
+        const customerExists = await storage.getCustomer(customerId);
+        if (!customerExists) {
+          return res.status(400).json({ message: 'Invalid customer ID' });
+        }
+      }
+
+      // Update the asset customer
+      const asset = await storage.updateAsset(assetId, { currentCustomerId: customerId });
+      if (!asset) {
+        return res.status(404).json({ message: 'Asset not found' });
+      }
+
+      // Create log entry for customer assignment change
+      await storage.createAssetLog({
+        assetId: asset.id,
+        userId: userId || 1, // Fallback to system user if not provided
+        actionType: 'CUSTOMER_ASSIGNED',
+        detailsJson: {
+          message: 'Customer assignment updated',
+          customerId,
+          previousCustomerId: asset.currentCustomerId
+        }
+      });
+
+      res.json(asset);
+    } catch (error) {
+      console.error('Error updating asset customer assignment:', error);
+      res.status(500).json({
+        message: 'Error updating asset customer assignment',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Asset Relationships API
+  app.get('/api/asset-relationships', async (req, res) => {
+    try {
+      const assetId = req.query.assetId ? Number(req.query.assetId) : undefined;
+      const includeReverse = req.query.includeReverse === 'true';
+
+      if (!assetId) {
+        return res.status(400).json({ message: 'Asset ID is required' });
+      }
+
+      // Get relationships from database
+      const relationships = await storage.getAssetRelationships(assetId, includeReverse);
+
+      // Enhance the response with asset details
+      const enhancedRelationships = await Promise.all(relationships.map(async (rel) => {
+        const sourceAsset = await storage.getAsset(rel.sourceAssetId);
+        const targetAsset = await storage.getAsset(rel.targetAssetId);
+
+        return {
+          ...rel,
+          sourceAsset: sourceAsset ? {
+            id: sourceAsset.id,
+            name: sourceAsset.name,
+            uniqueIdentifier: sourceAsset.uniqueIdentifier
+          } : null,
+          targetAsset: targetAsset ? {
+            id: targetAsset.id,
+            name: targetAsset.name,
+            uniqueIdentifier: targetAsset.uniqueIdentifier
+          } : null
+        };
+      }));
+
+      res.json(enhancedRelationships);
+    } catch (error) {
+      console.error('Error fetching asset relationships:', error);
+      res.status(500).json({
+        message: 'Error fetching asset relationships',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  app.post('/api/asset-relationships', validateRequest(insertAssetRelationshipSchema), async (req, res) => {
+    try {
+      const { sourceAssetId, targetAssetId, relationshipType, notes, userId, workspaceId } = req.body;
+
+      // Validate inputs
+      if (!sourceAssetId || !targetAssetId || !relationshipType) {
+        return res.status(400).json({ message: 'Source asset ID, target asset ID, and relationship type are required' });
+      }
+
+      // Validate assets exist
+      const sourceAsset = await storage.getAsset(sourceAssetId);
+      if (!sourceAsset) {
+        return res.status(400).json({ message: 'Source asset not found' });
+      }
+
+      const targetAsset = await storage.getAsset(targetAssetId);
+      if (!targetAsset) {
+        return res.status(400).json({ message: 'Target asset not found' });
+      }
+
+      // Check if relationship already exists
+      const existingRelationships = await storage.getAssetRelationships(sourceAssetId);
+      const alreadyExists = existingRelationships.some(rel =>
+        rel.sourceAssetId === sourceAssetId &&
+        rel.targetAssetId === targetAssetId &&
+        rel.relationshipType === relationshipType
+      );
+
+      if (alreadyExists) {
+        return res.status(400).json({ message: 'This relationship already exists' });
+      }
+
+      // Create the relationship in the database
+      const relationship = await storage.createAssetRelationship({
+        sourceAssetId,
+        targetAssetId,
+        relationshipType,
+        notes,
+        workspaceId: workspaceId || sourceAsset.workspaceId
+      });
+
+      // Create log entries for both assets
+      await storage.createAssetLog({
+        assetId: sourceAssetId,
+        userId: userId || null,
+        actionType: 'RELATIONSHIP_CREATED',
+        detailsJson: {
+          message: `Relationship created with asset ${targetAsset.name}`,
+          relationshipType,
+          targetAssetId
+        }
+      });
+
+      await storage.createAssetLog({
+        assetId: targetAssetId,
+        userId: userId || null,
+        actionType: 'RELATIONSHIP_CREATED',
+        detailsJson: {
+          message: `Relationship created with asset ${sourceAsset.name}`,
+          relationshipType,
+          sourceAssetId
+        }
+      });
+
+      res.status(201).json(relationship);
+    } catch (error) {
+      console.error('Error creating asset relationship:', error);
+      res.status(500).json({
+        message: 'Error creating asset relationship',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  app.put('/api/asset-relationships/:id', validateRequest(insertAssetRelationshipSchema.partial()), async (req, res) => {
+    try {
+      const relationshipId = Number(req.params.id);
+      const { relationshipType, notes, userId } = req.body;
+
+      // Get the existing relationship
+      const existingRelationship = await storage.getAssetRelationship(relationshipId);
+      if (!existingRelationship) {
+        return res.status(404).json({ message: 'Relationship not found' });
+      }
+
+      // Update the relationship
+      const updatedRelationship = await storage.updateAssetRelationship(relationshipId, {
+        relationshipType,
+        notes
+      });
+
+      // Create log entries for both assets
+      if (updatedRelationship) {
+        const sourceAsset = await storage.getAsset(updatedRelationship.sourceAssetId);
+        const targetAsset = await storage.getAsset(updatedRelationship.targetAssetId);
+
+        if (sourceAsset && targetAsset) {
+          await storage.createAssetLog({
+            assetId: updatedRelationship.sourceAssetId,
+            userId: userId || null,
+            actionType: 'RELATIONSHIP_UPDATED',
+            detailsJson: {
+              message: `Relationship with asset ${targetAsset.name} updated`,
+              relationshipType,
+              previousRelationshipType: existingRelationship.relationshipType
+            }
+          });
+
+          await storage.createAssetLog({
+            assetId: updatedRelationship.targetAssetId,
+            userId: userId || null,
+            actionType: 'RELATIONSHIP_UPDATED',
+            detailsJson: {
+              message: `Relationship with asset ${sourceAsset.name} updated`,
+              relationshipType,
+              previousRelationshipType: existingRelationship.relationshipType
+            }
+          });
+        }
+      }
+
+      res.json(updatedRelationship);
+    } catch (error) {
+      console.error('Error updating asset relationship:', error);
+      res.status(500).json({
+        message: 'Error updating asset relationship',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  app.delete('/api/asset-relationships/:id', async (req, res) => {
+    try {
+      const relationshipId = Number(req.params.id);
+      const { userId } = req.body;
+
+      // Get the relationship before deleting it
+      const relationship = await storage.getAssetRelationship(relationshipId);
+      if (!relationship) {
+        return res.status(404).json({ message: 'Relationship not found' });
+      }
+
+      // Get the assets involved
+      const sourceAsset = await storage.getAsset(relationship.sourceAssetId);
+      const targetAsset = await storage.getAsset(relationship.targetAssetId);
+
+      // Delete the relationship
+      const result = await storage.deleteAssetRelationship(relationshipId);
+      if (!result) {
+        return res.status(404).json({ message: 'Relationship not found' });
+      }
+
+      // Create log entries for both assets
+      if (sourceAsset && targetAsset) {
+        await storage.createAssetLog({
+          assetId: relationship.sourceAssetId,
+          userId: userId || null,
+          actionType: 'RELATIONSHIP_DELETED',
+          detailsJson: {
+            message: `Relationship with asset ${targetAsset.name} deleted`,
+            relationshipType: relationship.relationshipType,
+            targetAssetId: relationship.targetAssetId
+          }
+        });
+
+        await storage.createAssetLog({
+          assetId: relationship.targetAssetId,
+          userId: userId || null,
+          actionType: 'RELATIONSHIP_DELETED',
+          detailsJson: {
+            message: `Relationship with asset ${sourceAsset.name} deleted`,
+            relationshipType: relationship.relationshipType,
+            sourceAssetId: relationship.sourceAssetId
+          }
+        });
+      }
+
+      res.status(204).send();
+    } catch (error) {
+      console.error('Error deleting asset relationship:', error);
+      res.status(500).json({
+        message: 'Error deleting asset relationship',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   app.delete('/api/assets/:id', async (req, res) => {
     try {
       const result = await storage.deleteAsset(Number(req.params.id));
@@ -801,6 +1090,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(logs);
     } catch (error) {
       res.status(500).json({ message: 'Error fetching asset logs' });
+    }
+  });
+
+  // Asset Custom Field Values API
+  app.get('/api/assets/:assetId/custom-field-values', async (req, res) => {
+    try {
+      const customFieldValues = await storage.getAssetCustomFieldValues(Number(req.params.assetId));
+      res.json(customFieldValues);
+    } catch (error) {
+      res.status(500).json({ message: 'Error fetching custom field values' });
+    }
+  });
+
+  app.post('/api/asset-custom-field-values', validateRequest(insertAssetCustomFieldValueSchema), async (req, res) => {
+    try {
+      const customFieldValue = await storage.createAssetCustomFieldValue(req.body);
+      res.status(201).json(customFieldValue);
+    } catch (error) {
+      res.status(500).json({ message: 'Error creating custom field value' });
+    }
+  });
+
+  app.put('/api/asset-custom-field-values/:id', async (req, res) => {
+    try {
+      const customFieldValue = await storage.updateAssetCustomFieldValue(Number(req.params.id), req.body);
+      if (!customFieldValue) {
+        return res.status(404).json({ message: 'Custom field value not found' });
+      }
+      res.json(customFieldValue);
+    } catch (error) {
+      res.status(500).json({ message: 'Error updating custom field value' });
+    }
+  });
+
+  app.delete('/api/asset-custom-field-values/:id', async (req, res) => {
+    try {
+      const result = await storage.deleteAssetCustomFieldValue(Number(req.params.id));
+      if (!result) {
+        return res.status(404).json({ message: 'Custom field value not found' });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: 'Error deleting custom field value' });
     }
   });
 
@@ -1031,15 +1363,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // For now, we'll create a simple checkout session
       // This is a placeholder - in production you would use actual Stripe price IDs
-      const stripePriceMap = {
-        'Light': 'price_light', // Replace with actual Stripe price IDs
-        'Pro': 'price_pro',
-        'Enterprise': 'price_enterprise'
+      const stripePriceMap: { [key: string]: string } = { // Added explicit type
+        'Light': 'price_1PG...', // Replace with actual Stripe price IDs
+        'Pro': 'price_1PG...',
+        // Enterprise usually has custom pricing, handle separately or omit
       };
 
       const priceId = stripePriceMap[plan.name];
-      if (!priceId) {
-        return res.status(400).json({ message: 'Invalid plan for checkout' });
+      if (!priceId && plan.price > 0) { // Check if priceId exists for paid plans
+        console.error(`Stripe Price ID not found for plan: ${plan.name}`);
+        return res.status(400).json({ message: 'Pricing configuration error for this plan.' });
       }
 
       const session = await createCheckoutSession(priceId);
@@ -1051,6 +1384,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error creating checkout session:', error);
       res.status(500).json({ message: 'Error creating checkout session' });
+    }
+  });
+
+  // Customers API (New)
+  app.get('/api/customers', isAuthenticated, async (req: any, res) => {
+    try {
+      const workspaceId = req.user.workspaceId; // Get workspace from authenticated user
+      if (!workspaceId) {
+        return res.status(400).json({ message: 'Workspace ID not found for user.' });
+      }
+      const customers = await storage.getCustomers(workspaceId);
+      res.json(customers);
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+      res.status(500).json({ message: 'Error fetching customers' });
+    }
+  });
+
+  app.post('/api/customers', isAuthenticated, validateRequest(insertCustomerSchema), async (req: any, res) => {
+    try {
+      const workspaceId = req.user.workspaceId;
+      if (!workspaceId) {
+        return res.status(400).json({ message: 'Workspace ID not found for user.' });
+      }
+      const customerData = { ...req.body, workspaceId };
+      const customer = await storage.createCustomer(customerData);
+      res.status(201).json(customer);
+    } catch (error) {
+      console.error('Error creating customer:', error);
+      res.status(500).json({ message: 'Error creating customer' });
+    }
+  });
+
+  app.put('/api/customers/:id', isAuthenticated, validateRequest(insertCustomerSchema.partial()), async (req: any, res) => { // Use partial schema for updates
+    try {
+      const customerId = Number(req.params.id);
+      const workspaceId = req.user.workspaceId;
+
+      // Optional: Verify customer belongs to the user's workspace before updating
+      const existingCustomer = await storage.getCustomer(customerId);
+      if (!existingCustomer || existingCustomer.workspaceId !== workspaceId) {
+          return res.status(404).json({ message: 'Customer not found or access denied.' });
+      }
+
+      const customer = await storage.updateCustomer(customerId, req.body);
+      if (!customer) {
+        return res.status(404).json({ message: 'Customer not found' });
+      }
+      res.json(customer);
+    } catch (error) {
+      console.error('Error updating customer:', error);
+      res.status(500).json({ message: 'Error updating customer' });
+    }
+  });
+
+  app.delete('/api/customers/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const customerId = Number(req.params.id);
+      const workspaceId = req.user.workspaceId;
+
+      // Optional: Verify customer belongs to the user's workspace before deleting
+      const existingCustomer = await storage.getCustomer(customerId);
+      if (!existingCustomer || existingCustomer.workspaceId !== workspaceId) {
+          return res.status(404).json({ message: 'Customer not found or access denied.' });
+      }
+
+      const result = await storage.deleteCustomer(customerId);
+      if (!result) {
+        return res.status(404).json({ message: 'Customer not found' });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      res.status(500).json({ message: 'Error deleting customer' });
     }
   });
 

@@ -12,7 +12,8 @@ import {
   assetLogs, type AssetLog, type InsertAssetLog,
   subscriptionPlans, type SubscriptionPlan, type InsertSubscriptionPlan,
   subscriptions, type Subscription, type InsertSubscription,
-  customers, type Customer, type InsertCustomer // Added customer imports
+  customers, type Customer, type InsertCustomer, // Added customer imports
+  assetRelationships, type AssetRelationship, type InsertAssetRelationship // Added asset relationship imports
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, isNull, desc, sql, or, like } from "drizzle-orm";
@@ -23,7 +24,7 @@ export interface IStorage {
   // User operations
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
-  getUsers(): Promise<User[]>; // Added getUsers
+  getUsers(workspaceId?: number): Promise<User[]>; // Updated to accept workspaceId
   createUser(user: InsertUser): Promise<User>;
   upsertUser(user: UpsertUser): Promise<User>;
 
@@ -115,6 +116,13 @@ export interface IStorage {
   getCustomer(id: number): Promise<Customer | undefined>;
   updateCustomer(id: number, customer: Partial<InsertCustomer>): Promise<Customer | undefined>;
   deleteCustomer(id: number): Promise<boolean>;
+
+  // Asset Relationship operations
+  createAssetRelationship(relationship: InsertAssetRelationship): Promise<AssetRelationship>;
+  getAssetRelationships(assetId: number, includeReverse?: boolean): Promise<AssetRelationship[]>;
+  getAssetRelationship(id: number): Promise<AssetRelationship | undefined>;
+  updateAssetRelationship(id: number, relationship: Partial<InsertAssetRelationship>): Promise<AssetRelationship | undefined>;
+  deleteAssetRelationship(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -153,7 +161,10 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async getUsers(): Promise<User[]> { // Added getUsers implementation
+  async getUsers(workspaceId?: number): Promise<User[]> { // Updated to accept workspaceId
+    if (workspaceId) {
+      return await db.select().from(users).where(eq(users.workspaceId, workspaceId));
+    }
     return await db.select().from(users);
   }
 
@@ -681,6 +692,47 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCustomer(id: number): Promise<boolean> {
     const result = await db.delete(customers).where(eq(customers.id, id));
+    return (result.rowCount ?? 0) > 0; // Handle potential null
+  }
+
+  // Asset Relationship operations
+  async createAssetRelationship(relationship: InsertAssetRelationship): Promise<AssetRelationship> {
+    const [newRelationship] = await db.insert(assetRelationships).values(relationship).returning();
+    return newRelationship;
+  }
+
+  async getAssetRelationships(assetId: number, includeReverse: boolean = true): Promise<AssetRelationship[]> {
+    if (includeReverse) {
+      // Get relationships where this asset is either source or target
+      return await db.select().from(assetRelationships).where(
+        or(
+          eq(assetRelationships.sourceAssetId, assetId),
+          eq(assetRelationships.targetAssetId, assetId)
+        )
+      ).orderBy(desc(assetRelationships.createdAt));
+    } else {
+      // Get only relationships where this asset is the source
+      return await db.select().from(assetRelationships)
+        .where(eq(assetRelationships.sourceAssetId, assetId))
+        .orderBy(desc(assetRelationships.createdAt));
+    }
+  }
+
+  async getAssetRelationship(id: number): Promise<AssetRelationship | undefined> {
+    const [relationship] = await db.select().from(assetRelationships).where(eq(assetRelationships.id, id));
+    return relationship;
+  }
+
+  async updateAssetRelationship(id: number, relationship: Partial<InsertAssetRelationship>): Promise<AssetRelationship | undefined> {
+    const [updatedRelationship] = await db.update(assetRelationships)
+      .set({ ...relationship, updatedAt: new Date() })
+      .where(eq(assetRelationships.id, id))
+      .returning();
+    return updatedRelationship;
+  }
+
+  async deleteAssetRelationship(id: number): Promise<boolean> {
+    const result = await db.delete(assetRelationships).where(eq(assetRelationships.id, id));
     return (result.rowCount ?? 0) > 0; // Handle potential null
   }
 }
