@@ -55,13 +55,14 @@ export function NewAssetModal({
   const [customFieldValues, setCustomFieldValues] = useState<{ [fieldId: number]: any }>({});
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const { user, getCustomFieldsForAssetType } = useAppContext();
+  const { user, getCustomFieldsForAssetType, customers } = useAppContext(); // Access customers from context
 
   // Extend the insert schema
   const extendedSchema = insertAssetSchema.extend({
     uniqueIdentifier: z.string().min(1, "Asset ID is required"),
     name: z.string().min(1, "Asset name is required"),
     // The dateAcquired field will be handled by the server schema's union type
+    currentCustomerId: z.number().optional().nullable(), // Add currentCustomerId to schema
   });
 
   type FormData = z.infer<typeof extendedSchema>;
@@ -79,11 +80,11 @@ export function NewAssetModal({
       workspaceId: user?.workspaceId || undefined,
       uniqueIdentifier: generateRandomId("AST"),
       name: "",
-      // Format as YYYY-MM-DD for the input field
-      dateAcquired: new Date().toISOString().split("T")[0],
+      dateAcquired: undefined, // Set default to undefined or null
       cost: "",
       notes: "",
       isArchived: false,
+      currentCustomerId: undefined, // Add default value for currentCustomerId
     },
   });
 
@@ -142,24 +143,15 @@ export function NewAssetModal({
       setLoading(true);
       
       // Create the asset with properly formatted data
-      // We need to manually convert the date string to a Date object
-      const date = data.dateAcquired ? new Date(data.dateAcquired) : undefined;
-      
-      // Log for debugging
-      console.log("Original date value:", data.dateAcquired);
-      console.log("Converted date value:", date);
-      
+      // The dateAcquired is already a Date object or undefined due to schema transform
+      // No need to create a new Date object here
+
       const formattedData = {
         ...data,
-        // Replace the string date with a Date object
-        dateAcquired: date,
         cost: data.cost ? data.cost.toString() : "",
         userId: user?.id,
       };
-      
-      // Log the final formatted data to check what we're sending
-      console.log("Formatted data:", formattedData);
-      
+
       // apiRequest now has a custom JSON serializer that properly handles Date objects
       const response = await apiRequest("POST", "/api/assets", formattedData);
       
@@ -309,10 +301,10 @@ export function NewAssetModal({
                 <div>
                   <div className="flex justify-between">
                     <Label htmlFor="assetId" className="block text-sm font-medium text-neutral-700 mb-1">
-                      Asset ID
+                      Serial Number / Asset ID
                     </Label>
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={generateNewAssetId}
                       className="text-xs text-primary-600 hover:text-primary-800"
                       disabled={loading || !selectedAssetType}
@@ -320,8 +312,8 @@ export function NewAssetModal({
                       Generate ID
                     </button>
                   </div>
-                  <Input 
-                    id="assetId" 
+                  <Input
+                    id="assetId"
                     placeholder="LP-2023-0042"
                     {...register("uniqueIdentifier")}
                     disabled={loading}
@@ -415,7 +407,7 @@ export function NewAssetModal({
                           value={customFieldValues[field.id] || ""}
                           onChange={(e) => handleCustomFieldChange(field.id, e.target.value, field.fieldType)}
                           disabled={loading}
-                          required={field.isRequired}
+                          required={field.isRequired || undefined} // Handle boolean | null
                         />
                       )}
                       
@@ -426,7 +418,7 @@ export function NewAssetModal({
                           value={customFieldValues[field.id] || ""}
                           onChange={(e) => handleCustomFieldChange(field.id, e.target.value, field.fieldType)}
                           disabled={loading}
-                          required={field.isRequired}
+                          required={field.isRequired || undefined} // Handle boolean | null
                         />
                       )}
                       
@@ -437,7 +429,7 @@ export function NewAssetModal({
                           value={customFieldValues[field.id] || ""}
                           onChange={(e) => handleCustomFieldChange(field.id, e.target.value, field.fieldType)}
                           disabled={loading}
-                          required={field.isRequired}
+                          required={field.isRequired || undefined} // Handle boolean | null
                         />
                       )}
                       
@@ -527,7 +519,30 @@ export function NewAssetModal({
                     </SelectContent>
                   </Select>
                 </div>
-                
+
+                {/* Customer Selection */}
+                <div className="sm:col-span-2">
+                  <Label htmlFor="customer" className="block text-sm font-medium text-neutral-700 mb-1">
+                    Customer
+                  </Label>
+                  <Select
+                    onValueChange={(value) => setValue("currentCustomerId", value === "none" ? null : parseInt(value))}
+                    disabled={loading}
+                  >
+                    <SelectTrigger id="customer" className="w-full">
+                      <SelectValue placeholder="No Customer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No Customer</SelectItem>
+                      {customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id.toString()}>
+                          {customer.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="sm:col-span-2">
                   <Label htmlFor="assignment" className="block text-sm font-medium text-neutral-700 mb-1">
                     Assigned To
@@ -549,7 +564,7 @@ export function NewAssetModal({
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div className="sm:col-span-2">
                   <Label htmlFor="notes" className="block text-sm font-medium text-neutral-700 mb-1">
                     Notes

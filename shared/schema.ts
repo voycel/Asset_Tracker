@@ -290,7 +290,16 @@ export const insertManufacturerSchema = createInsertSchema(manufacturers).omit({
 export const insertStatusSchema = createInsertSchema(statuses).omit({ id: true, createdAt: true });
 export const insertLocationSchema = createInsertSchema(locations).omit({ id: true, createdAt: true });
 export const insertAssignmentSchema = createInsertSchema(assignments).omit({ id: true, createdAt: true });
-export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true, updatedAt: true }); // New schema
+// Create a custom schema for customers that properly handles null values
+export const insertCustomerSchema = createInsertSchema(customers)
+  .omit({ id: true, createdAt: true, updatedAt: true, workspaceId: true }) // Omit workspaceId as it will be added by the server
+  .extend({
+    // Make these fields optional and allow null values
+    email: z.string().nullable().optional(),
+    phone: z.string().nullable().optional(),
+    address: z.string().nullable().optional(),
+    notes: z.string().nullable().optional(),
+  });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertSubscriptionPlanSchema = createInsertSchema(subscriptionPlans).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({ id: true, createdAt: true, updatedAt: true });

@@ -668,13 +668,33 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Customer operations (New Implementations)
-  async createCustomer(customer: InsertCustomer): Promise<Customer> {
-    const [newCustomer] = await db.insert(customers).values(customer).returning();
-    return newCustomer;
+  async createCustomer(customerData: any): Promise<Customer> {
+    console.log('Storage: Creating customer with data:', customerData);
+    try {
+      // Make sure workspaceId is included
+      if (!customerData.workspaceId) {
+        throw new Error('workspaceId is required for creating a customer');
+      }
+
+      const [newCustomer] = await db.insert(customers).values(customerData).returning();
+      console.log('Storage: Customer created successfully:', newCustomer);
+      return newCustomer;
+    } catch (error) {
+      console.error('Storage: Error creating customer:', error);
+      throw error;
+    }
   }
 
   async getCustomers(workspaceId: number): Promise<Customer[]> {
-    return await db.select().from(customers).where(eq(customers.workspaceId, workspaceId));
+    console.log('Storage: Getting customers for workspace:', workspaceId);
+    try {
+      const result = await db.select().from(customers).where(eq(customers.workspaceId, workspaceId));
+      console.log('Storage: Found', result.length, 'customers');
+      return result;
+    } catch (error) {
+      console.error('Storage: Error getting customers:', error);
+      throw error;
+    }
   }
 
   async getCustomer(id: number): Promise<Customer | undefined> {

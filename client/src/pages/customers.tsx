@@ -20,23 +20,48 @@ export function CustomersPage() {
   const queryClient = useQueryClient();
 
   // Fetch customers
-  const { data: customers = [], isLoading, error } = useQuery({
+  const { data: customers = [], isLoading, error, refetch } = useQuery({
     queryKey: ['/api/customers'],
     queryFn: async () => {
+      console.log('Fetching customers...');
       const response = await apiRequest('GET', '/api/customers');
-      return response.json();
-    }
+      const data = await response.json();
+      console.log('Customers data received:', data);
+      return data;
+    },
+    staleTime: 0, // Always refetch when invalidated
+    refetchOnMount: true,
+    refetchOnWindowFocus: true
   });
 
   // Create customer mutation
   const createCustomerMutation = useMutation({
     mutationFn: async (customerData: Omit<Customer, 'id' | 'createdAt' | 'updatedAt' | 'workspaceId'>) => {
-      const response = await apiRequest('POST', '/api/customers', customerData);
-      return response.json();
+      console.log('Creating customer:', customerData);
+      try {
+        const response = await apiRequest('POST', '/api/customers', customerData);
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Error response from server:', errorText);
+          throw new Error(`Failed to create customer: ${response.status} ${errorText}`);
+        }
+        const data = await response.json();
+        console.log('Customer creation response:', data);
+        return data;
+      } catch (error) {
+        console.error('Error in customer creation:', error);
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Customer created successfully, data:', data);
+      // Force a refetch of the customers data
       queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+      queryClient.refetchQueries({ queryKey: ['/api/customers'] });
       setIsModalOpen(false);
+    },
+    onError: (error) => {
+      console.error('Error creating customer:', error);
     }
   });
 
@@ -65,26 +90,36 @@ export function CustomersPage() {
   });
 
   const handleSaveCustomer = (customerData: Omit<Customer, 'id' | 'createdAt' | 'updatedAt' | 'workspaceId'>) => {
+    console.log('Saving customer:', customerData);
+
     if (editingCustomer) {
       // Update existing customer
       updateCustomerMutation.mutate({
         id: editingCustomer.id,
         data: customerData
       }, {
-        onSuccess: () => {
+        onSuccess: (updatedCustomer) => {
+          console.log('Customer updated successfully:', updatedCustomer);
           toast({ title: "Customer Updated", description: `${customerData.name} updated successfully.` });
+          // Force a manual refetch to ensure UI is updated
+          refetch();
         },
-        onError: (error) => {
+        onError: (err) => {
+          console.error('Error updating customer:', err);
           toast({ title: "Error", description: "Failed to update customer.", variant: "destructive" });
         }
       });
     } else {
       // Add new customer
       createCustomerMutation.mutate(customerData, {
-        onSuccess: (data) => {
+        onSuccess: (newCustomer) => {
+          console.log('Customer created successfully:', newCustomer);
           toast({ title: "Customer Created", description: `${customerData.name} created successfully.` });
+          // Force a manual refetch to ensure UI is updated
+          refetch();
         },
-        onError: (error) => {
+        onError: (err) => {
+          console.error('Error creating customer:', err);
           toast({ title: "Error", description: "Failed to create customer.", variant: "destructive" });
         }
       });
@@ -93,11 +128,16 @@ export function CustomersPage() {
 
   const handleDeleteCustomer = () => {
     if (customerToDelete) {
+      console.log('Deleting customer:', customerToDelete);
       deleteCustomerMutation.mutate(customerToDelete.id, {
         onSuccess: () => {
+          console.log('Customer deleted successfully');
           toast({ title: "Customer Deleted", description: `${customerToDelete.name} deleted successfully.`, variant: "destructive" });
+          // Force a manual refetch to ensure UI is updated
+          refetch();
         },
-        onError: (error) => {
+        onError: (err) => {
+          console.error('Error deleting customer:', err);
           toast({ title: "Error", description: "Failed to delete customer.", variant: "destructive" });
         }
       });
@@ -269,13 +309,18 @@ function CustomerModal({ isOpen, onClose, onSave, customer, isLoading }: Custome
       alert("Name is required");
       return;
     }
-    onSave({
+    // Create customer data object with proper handling of empty strings
+    const customerData = {
       name,
-      email: email || null,
-      phone: phone || null,
-      address: address || null,
-      notes: notes || null
-    });
+      // Only include non-empty values, otherwise use null
+      email: email.trim() !== '' ? email : null,
+      phone: phone.trim() !== '' ? phone : null,
+      address: address.trim() !== '' ? address : null,
+      notes: notes.trim() !== '' ? notes : null
+    };
+
+    console.log('Submitting customer data:', customerData);
+    onSave(customerData);
   };
 
   return (

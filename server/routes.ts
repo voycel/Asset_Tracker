@@ -22,15 +22,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const validateRequest = (schema: any) => {
     return (req: Request, res: Response, next: Function) => {
       try {
+        console.log('Validating request body:', req.body);
+        console.log('Using schema:', schema);
         req.body = schema.parse(req.body);
+        console.log('Validation successful, parsed body:', req.body);
         next();
       } catch (error) {
         if (error instanceof ZodError) {
+          console.error('Validation error:', error.errors);
           return res.status(400).json({
             message: 'Validation error',
             errors: error.errors
           });
         }
+        console.error('Non-validation error:', error);
         next(error);
       }
     };
@@ -1390,11 +1395,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Customers API (New)
   app.get('/api/customers', isAuthenticated, async (req: any, res) => {
     try {
+      console.log('GET /api/customers - User:', req.user);
       const workspaceId = req.user.workspaceId; // Get workspace from authenticated user
       if (!workspaceId) {
+        console.error('Workspace ID not found for user:', req.user);
         return res.status(400).json({ message: 'Workspace ID not found for user.' });
       }
+      console.log('Fetching customers for workspace:', workspaceId);
       const customers = await storage.getCustomers(workspaceId);
+      console.log('Customers found:', customers.length);
       res.json(customers);
     } catch (error) {
       console.error('Error fetching customers:', error);
@@ -1404,16 +1413,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/customers', isAuthenticated, validateRequest(insertCustomerSchema), async (req: any, res) => {
     try {
+      console.log('POST /api/customers - Request body:', req.body);
+      console.log('User:', req.user);
+
       const workspaceId = req.user.workspaceId;
       if (!workspaceId) {
+        console.error('Workspace ID not found for user:', req.user);
         return res.status(400).json({ message: 'Workspace ID not found for user.' });
       }
-      const customerData = { ...req.body, workspaceId };
-      const customer = await storage.createCustomer(customerData);
+
+      // Clean up the data to ensure null values are properly handled
+      const cleanedData = {
+        name: req.body.name,
+        email: req.body.email || null,
+        phone: req.body.phone || null,
+        address: req.body.address || null,
+        notes: req.body.notes || null,
+        workspaceId
+      };
+
+      console.log('Creating customer with cleaned data:', cleanedData);
+
+      const customer = await storage.createCustomer(cleanedData);
+      console.log('Customer created successfully:', customer);
+
+      // Return the created customer
       res.status(201).json(customer);
     } catch (error) {
       console.error('Error creating customer:', error);
-      res.status(500).json({ message: 'Error creating customer' });
+      res.status(500).json({ message: 'Error creating customer', details: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Asset, AssetCustomFieldValue, AssetLog, CustomFieldDefinition } from "@shared/schema";
@@ -9,7 +9,8 @@ import { formatDate, formatDateTime, formatCurrency, getIconForAssetType } from 
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Archive, Edit, QrCode, History, BookmarkPlus,
-  CheckCircle, Circle, Wrench, AlertCircle, Link as LinkIcon
+  CheckCircle, Circle, Wrench, AlertCircle, Link as LinkIcon,
+  Copy, Clipboard
 } from "lucide-react";
 import { AssetRelationshipManager } from "@/components/asset-relationship-manager";
 import { AssetModals } from "@/components/asset-modals";
@@ -44,43 +45,56 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated, onEdi
   } | null>(null);
   const [customFields, setCustomFields] = useState<CustomFieldDefinition[]>([]);
   const [isRelationshipModalOpen, setIsRelationshipModalOpen] = useState(false);
+  const [showAllLogs, setShowAllLogs] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    const fetchAssetDetails = async () => {
-      if (!asset) return;
+  const fetchAssetDetails = useCallback(async () => {
+    if (!asset || !isOpen) return;
 
-      try {
-        setLoading(true);
-        const response = await apiRequest("GET", `/api/assets/${asset.id}`);
-        const data = await response.json();
-        setAssetDetails(data);
+    try {
+      setLoading(true);
+      console.log(`Fetching details for asset ID: ${asset.id}`);
 
-        // Fetch custom fields for this asset type
-        const fields = await getCustomFieldsForAssetType(asset.assetTypeId);
-        setCustomFields(fields);
-      } catch (error) {
-        console.error("Error fetching asset details:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load asset details.",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
+      const response = await apiRequest("GET", `/api/assets/${asset.id}`);
+
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`);
       }
-    };
 
+      const data = await response.json();
+      console.log("Asset details fetched successfully:", data);
+      setAssetDetails(data);
+
+      // Fetch custom fields for this asset type
+      console.log(`Fetching custom fields for asset type ID: ${asset.assetTypeId}`);
+      const fields = await getCustomFieldsForAssetType(asset.assetTypeId);
+      console.log("Custom fields fetched successfully:", fields);
+      setCustomFields(fields);
+    } catch (error) {
+      console.error("Error fetching asset details:", error);
+      toast({
+        title: "Error loading asset details",
+        description: error instanceof Error ? error.message : "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [asset, isOpen, getCustomFieldsForAssetType, toast]);
+
+  useEffect(() => {
     if (isOpen && asset) {
       fetchAssetDetails();
     }
-  }, [isOpen, asset, getCustomFieldsForAssetType, toast]);
+  }, [isOpen, asset, fetchAssetDetails]);
 
   if (!asset) return null;
 
+  // Find related entities for the asset
   const assetType = assetTypes.find(at => at.id === asset.assetTypeId);
   const manufacturer = manufacturers.find(m => m.id === asset.manufacturerId);
   const currentStatus = statuses.find(s => s.id === asset.currentStatusId);
+  // These are used in the UI for displaying location and assignment info
   const currentLocation = locations.find(l => l.id === asset.currentLocationId);
   const currentAssignment = assignments.find(a => a.id === asset.currentAssignmentId);
   const currentCustomer = Array.isArray(customers) ? customers.find(c => c.id === asset.currentCustomerId) : null;
@@ -361,7 +375,23 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated, onEdi
                         <div className="flex items-center text-sm text-neutral-500">
                           <span>{assetType?.name || "Unknown Type"}</span>
                           <span className="mx-2">•</span>
-                          <span>ID: {asset.uniqueIdentifier}</span>
+                          <div className="flex items-center">
+                            <span>Serial Number / Asset ID: {asset.uniqueIdentifier}</span>
+                            <button
+                              className="ml-2 text-neutral-400 hover:text-primary-500 focus:outline-none"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigator.clipboard.writeText(asset.uniqueIdentifier);
+                                toast({
+                                  title: "Copied!",
+                                  description: "Serial number copied to clipboard",
+                                });
+                              }}
+                              aria-label="Copy serial number to clipboard"
+                            >
+                              <Copy size={14} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -423,12 +453,22 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated, onEdi
                 </div>
 
                 {/* Activity Log */}
-                <div className="bg-white border border-neutral-200 rounded-lg shadow-sm p-4">
-                  <h3 className="text-base font-medium text-neutral-900 mb-4">Activity Log</h3>
+                <div id="asset-activity-log" className="bg-white border border-neutral-200 rounded-lg shadow-sm p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-base font-medium text-neutral-900">Activity Log</h3>
+                    {assetDetails?.logs && assetDetails.logs.length > 10 && (
+                      <button
+                        className="text-sm text-primary-600 hover:text-primary-800 focus:outline-none"
+                        onClick={() => setShowAllLogs(!showAllLogs)}
+                      >
+                        {showAllLogs ? "Show Recent" : "Show All"}
+                      </button>
+                    )}
+                  </div>
 
                   {assetDetails?.logs && assetDetails.logs.length > 0 ? (
                     <div className="space-y-4">
-                      {assetDetails.logs.slice(0, 10).map(log => (
+                      {(showAllLogs ? assetDetails.logs : assetDetails.logs.slice(0, 10)).map(log => (
                         <div className="flex" key={log.id}>
                           <div className="flex-shrink-0 mt-1">
                             <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
@@ -454,19 +494,30 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated, onEdi
                               <span className="mx-1">•</span>
                               <span>{formatDateTime(log.timestamp)}</span>
                             </div>
-                            {log.detailsJson && (
+                            {log.detailsJson !== null && log.detailsJson !== undefined && (
                               <p className="mt-1 text-sm text-neutral-600">
-                                {typeof log.detailsJson === 'string'
+                                {typeof log.detailsJson === 'string' || typeof log.detailsJson === 'number'
                                   ? log.detailsJson
-                                  : (typeof log.detailsJson === 'object' && log.detailsJson !== null && 'message' in log.detailsJson)
+                                  : (typeof log.detailsJson === 'object' && 'message' in log.detailsJson && typeof (log.detailsJson as any).message === 'string')
                                     ? (log.detailsJson as any).message
-                                    : JSON.stringify(log.detailsJson)
+                                    : '' // Render empty string for other types
                                 }
                               </p>
                             )}
                           </div>
                         </div>
                       ))}
+
+                      {!showAllLogs && assetDetails.logs.length > 10 && (
+                        <div className="text-center pt-2">
+                          <button
+                            className="text-sm text-primary-600 hover:text-primary-800 focus:outline-none"
+                            onClick={() => setShowAllLogs(true)}
+                          >
+                            Show {assetDetails.logs.length - 10} more entries...
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <p className="text-sm text-neutral-500">No activity logs available.</p>
@@ -488,7 +539,7 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated, onEdi
                         disabled={loading}
                       >
                         <div className="flex items-center">
-                          <span className="status-label" style={{ backgroundColor: status.color }}></span>
+                          <span className="status-label" style={{ backgroundColor: status.color || undefined }}></span>
                           {status.name}
                         </div>
                         {currentStatus?.id === status.id && (
@@ -502,6 +553,11 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated, onEdi
                 {/* Location */}
                 <div className="bg-white border border-neutral-200 rounded-lg shadow-sm p-4 mb-4">
                   <h3 className="text-base font-medium text-neutral-900 mb-3">Location</h3>
+                  {currentLocation && (
+                    <div className="mb-2 text-sm text-neutral-600">
+                      Current: <span className="font-medium">{currentLocation.name}</span>
+                    </div>
+                  )}
                   <select
                     className="block w-full rounded-md border-neutral-300 py-2 pl-3 pr-10 text-sm focus:border-primary-500 focus:ring-primary-500"
                     value={asset.currentLocationId?.toString() || "none"}
@@ -518,6 +574,11 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated, onEdi
                 {/* Assignment */}
                 <div className="bg-white border border-neutral-200 rounded-lg shadow-sm p-4 mb-4">
                   <h3 className="text-base font-medium text-neutral-900 mb-3">Assignment</h3>
+                  {currentAssignment && (
+                    <div className="mb-2 text-sm text-neutral-600">
+                      Current: <span className="font-medium">{currentAssignment.name}</span>
+                    </div>
+                  )}
                   <select
                     className="block w-full rounded-md border-neutral-300 py-2 pl-3 pr-10 text-sm focus:border-primary-500 focus:ring-primary-500"
                     value={asset.currentAssignmentId?.toString() || "none"}
@@ -590,16 +651,26 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated, onEdi
                       variant="outline"
                       className="w-full"
                       onClick={() => {
-                        // For now, just show all logs in the current view
+                        // Show all logs instead of just the first 10
+                        const historySection = document.getElementById('asset-activity-log');
+                        if (historySection) {
+                          historySection.scrollIntoView({ behavior: 'smooth' });
+                        }
+
+                        // Toggle showing all logs
+                        setShowAllLogs(!showAllLogs);
+
                         toast({
-                          title: "Full history",
-                          description: "Viewing all available logs in the current view."
+                          title: showAllLogs ? "Showing recent logs" : "Showing all logs",
+                          description: showAllLogs
+                            ? "Displaying the 10 most recent logs"
+                            : `Displaying all ${assetDetails?.logs?.length || 0} logs`
                         });
                       }}
                       disabled={loading}
                     >
                       <History className="mr-1 h-5 w-5" />
-                      View Full History
+                      {showAllLogs ? "Show Recent Logs" : "View Full History"}
                     </Button>
 
                     <Button
@@ -611,6 +682,33 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated, onEdi
                       <LinkIcon className="mr-1 h-5 w-5" />
                       Manage Relationships
                     </Button>
+
+                    {/* Workflow Action Buttons (Placeholder) */}
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => toast({ title: "Action Needed", description: "Implement 'Mark as Shipped' functionality." })}
+                      disabled={loading}
+                    >
+                      Mark as Shipped
+                    </Button>
+                     <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => toast({ title: "Action Needed", description: "Implement 'Initiate RMA' functionality." })}
+                      disabled={loading}
+                    >
+                      Initiate RMA
+                    </Button>
+                     <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => toast({ title: "Action Needed", description: "Implement 'Mark as Returned' functionality." })}
+                      disabled={loading}
+                    >
+                      Mark as Returned
+                    </Button>
+
 
                     <Button
                       variant="outline"

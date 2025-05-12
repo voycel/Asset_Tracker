@@ -9,7 +9,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { AssetDetailWrapper } from "@/pages/asset-detail-wrapper";
 import { formatDate, formatCurrency, getIconForAssetType } from "@/lib/utils";
-import { Eye, Edit, Archive } from "lucide-react";
+import { Eye, Edit, Archive, Copy } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -119,6 +119,7 @@ export default function Assets() {
     {
       accessorKey: "type",
       header: "Type",
+      enableSorting: true,
       cell: ({ row }) => {
         const asset = row.original;
         const assetType = assetTypes.find(at => at.id === asset.assetTypeId);
@@ -134,17 +135,38 @@ export default function Assets() {
     },
     {
       accessorKey: "uniqueIdentifier",
-      header: "Asset ID",
-      cell: ({ row }) => <div>{row.original.uniqueIdentifier}</div>,
+      header: "Serial Number / Asset ID",
+      enableSorting: true,
+      cell: ({ row }) => (
+        <div className="flex items-center">
+          <span>{row.original.uniqueIdentifier}</span>
+          <button
+            className="ml-2 text-neutral-400 hover:text-primary-500 focus:outline-none"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigator.clipboard.writeText(row.original.uniqueIdentifier);
+              toast({
+                title: "Copied!",
+                description: "Serial number copied to clipboard",
+              });
+            }}
+            aria-label="Copy serial number to clipboard"
+          >
+            <Copy size={14} />
+          </button>
+        </div>
+      ),
     },
     {
       accessorKey: "name",
       header: "Name",
+      enableSorting: true,
       cell: ({ row }) => <div className="font-medium">{row.original.name}</div>,
     },
     {
       accessorKey: "manufacturer",
       header: "Manufacturer",
+      enableSorting: true,
       cell: ({ row }) => {
         const asset = row.original;
         const manufacturer = manufacturers.find(m => m.id === asset.manufacturerId);
@@ -154,6 +176,12 @@ export default function Assets() {
     {
       accessorKey: "status",
       header: "Status",
+      enableSorting: true,
+      sortingFn: (rowA, rowB) => {
+        const statusA = statuses.find(s => s.id === rowA.original.currentStatusId)?.name || "";
+        const statusB = statuses.find(s => s.id === rowB.original.currentStatusId)?.name || "";
+        return statusA.localeCompare(statusB);
+      },
       cell: ({ row }) => {
         const asset = row.original;
         const status = statuses.find(s => s.id === asset.currentStatusId);
@@ -188,6 +216,12 @@ export default function Assets() {
     {
       accessorKey: "location",
       header: "Location",
+      enableSorting: true,
+      sortingFn: (rowA, rowB) => {
+        const locationA = locations.find(l => l.id === rowA.original.currentLocationId)?.name || "";
+        const locationB = locations.find(l => l.id === rowB.original.currentLocationId)?.name || "";
+        return locationA.localeCompare(locationB);
+      },
       cell: ({ row }) => {
         const asset = row.original;
         const location = locations.find(l => l.id === asset.currentLocationId);
@@ -195,13 +229,33 @@ export default function Assets() {
       },
     },
     {
+      accessorKey: "customer",
+      header: "Customer",
+      enableSorting: true,
+      sortingFn: (rowA, rowB) => {
+        const { customers } = useAppContext();
+        const customerA = customers?.find(c => c.id === rowA.original.currentCustomerId)?.name || "";
+        const customerB = customers?.find(c => c.id === rowB.original.currentCustomerId)?.name || "";
+        return customerA.localeCompare(customerB);
+      },
+      cell: ({ row }) => {
+        const asset = row.original;
+        // Access customers from useAppContext
+        const { customers } = useAppContext();
+        const customer = customers?.find(c => c.id === asset.currentCustomerId);
+        return <div>{customer?.name || "N/A"}</div>;
+      },
+    },
+    {
       accessorKey: "dateAcquired",
       header: "Date Acquired",
+      enableSorting: true,
       cell: ({ row }) => <div>{formatDate(row.original.dateAcquired)}</div>,
     },
     {
       accessorKey: "cost",
       header: "Cost",
+      enableSorting: true,
       cell: ({ row }) => <div>{formatCurrency(row.original.cost)}</div>,
     },
     {
@@ -262,8 +316,8 @@ export default function Assets() {
               <DataTable
                 columns={columns}
                 data={assets}
-                searchColumn="name"
-                searchPlaceholder="Search assets by name, ID, or attributes..."
+                // Remove the searchColumn prop to disable the redundant search bar
+                // since we already have the global search in the header
               />
             )}
           </div>

@@ -20,7 +20,8 @@ import {
   CustomFieldDefinition,
   insertAssetSchema,
   Asset,
-  AssetCustomFieldValue
+  AssetCustomFieldValue,
+  Customer // Import Customer type
 } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -40,6 +41,7 @@ interface EditAssetModalProps {
   statuses: Status[];
   locations: Location[];
   assignments: Assignment[];
+  customers: Customer[]; // Add customers to props
 }
 
 export function EditAssetModal({
@@ -53,6 +55,7 @@ export function EditAssetModal({
   statuses,
   locations,
   assignments,
+  customers, // Destructure customers from props
 }: EditAssetModalProps) {
   const [selectedAssetType, setSelectedAssetType] = useState<AssetType | null>(null);
   const [customFields, setCustomFields] = useState<CustomFieldDefinition[]>([]);
@@ -66,6 +69,7 @@ export function EditAssetModal({
     uniqueIdentifier: z.string().min(1, "Asset ID is required"),
     name: z.string().min(1, "Asset name is required"),
     // The dateAcquired field will be handled by the server schema's union type
+    currentCustomerId: z.number().optional().nullable(), // Add currentCustomerId to schema
   });
 
   type FormData = z.infer<typeof extendedSchema>;
@@ -83,10 +87,11 @@ export function EditAssetModal({
       workspaceId: user?.workspaceId || undefined,
       uniqueIdentifier: "",
       name: "",
-      dateAcquired: new Date().toISOString().split("T")[0],
+      dateAcquired: undefined, // Set default to undefined or null
       cost: "",
       notes: "",
       isArchived: false,
+      currentCustomerId: undefined, // Add default value for currentCustomerId
     },
   });
 
@@ -101,12 +106,14 @@ export function EditAssetModal({
       setValue("uniqueIdentifier", asset.uniqueIdentifier);
       setValue("name", asset.name);
       setValue("manufacturerId", asset.manufacturerId);
-      setValue("dateAcquired", asset.dateAcquired ? new Date(asset.dateAcquired).toISOString().split("T")[0] : "");
+      // Set dateAcquired as Date object or undefined
+      setValue("dateAcquired", asset.dateAcquired ? new Date(asset.dateAcquired) : undefined);
       setValue("cost", asset.cost?.toString() || "");
       setValue("notes", asset.notes || "");
       setValue("currentStatusId", asset.currentStatusId);
       setValue("currentLocationId", asset.currentLocationId);
       setValue("currentAssignmentId", asset.currentAssignmentId);
+      setValue("currentCustomerId", asset.currentCustomerId); // Set currentCustomerId
 
       // Set selected asset type
       const assetType = assetTypes.find(at => at.id === asset.assetTypeId);
@@ -167,12 +174,11 @@ export function EditAssetModal({
     try {
       setLoading(true);
 
-      // Create the asset with properly formatted data
-      const date = data.dateAcquired ? new Date(data.dateAcquired) : undefined;
+      // The dateAcquired is already a Date object or undefined due to schema transform
+      // No need to create a new Date object here
 
       const formattedData = {
         ...data,
-        dateAcquired: date,
         cost: data.cost ? data.cost.toString() : "",
         userId: user?.id,
       };
@@ -310,7 +316,7 @@ export function EditAssetModal({
                 <div>
                   <div className="flex justify-between">
                     <Label htmlFor="assetId" className="block text-sm font-medium text-neutral-700 mb-1">
-                      Asset ID
+                      Serial Number / Asset ID
                     </Label>
                   </div>
                   <Input
@@ -390,6 +396,30 @@ export function EditAssetModal({
                       {statuses.map((status) => (
                         <SelectItem key={status.id} value={status.id.toString()}>
                           {status.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Customer Selection */}
+                <div>
+                  <Label htmlFor="customer" className="block text-sm font-medium text-neutral-700 mb-1">
+                    Customer
+                  </Label>
+                  <Select
+                    value={watch("currentCustomerId")?.toString() || "none"}
+                    onValueChange={(value) => setValue("currentCustomerId", value && value !== "none" ? parseInt(value) : undefined)}
+                    disabled={loading}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select customer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No Customer</SelectItem>
+                      {Array.isArray(customers) && customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id.toString()}>
+                          {customer.name}
                         </SelectItem>
                       ))}
                     </SelectContent>

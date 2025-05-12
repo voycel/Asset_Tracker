@@ -80,13 +80,29 @@ export function DataTable<TData, TValue>({
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
                   return (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
+                    <TableHead key={header.id} className={header.column.getCanSort() ? "cursor-pointer select-none" : ""}>
+                      <div className="flex items-center">
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                        {header.column.getCanSort() && (
+                          <button
+                            className="ml-1 rounded-md p-1 hover:bg-neutral-100"
+                            onClick={() => header.column.toggleSorting()}
+                          >
+                            {header.column.getIsSorted() === "asc" ? (
+                              <span className="material-icons" style={{ fontSize: "16px" }}>arrow_upward</span>
+                            ) : header.column.getIsSorted() === "desc" ? (
+                              <span className="material-icons" style={{ fontSize: "16px" }}>arrow_downward</span>
+                            ) : (
+                              <span className="material-icons text-neutral-400" style={{ fontSize: "16px" }}>unfold_more</span>
+                            )}
+                          </button>
+                        )}
+                      </div>
                     </TableHead>
                   );
                 })}
