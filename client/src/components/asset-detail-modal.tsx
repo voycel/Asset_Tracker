@@ -247,9 +247,13 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated }: Ass
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0">
+      <DialogContent 
+        className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0"
+        aria-describedby="asset-details-dialog-description"
+      >
         <DialogHeader className="px-6 py-4 border-b border-neutral-200 flex-shrink-0">
           <DialogTitle className="text-lg font-semibold text-neutral-900">Asset Details</DialogTitle>
+          <p id="asset-details-dialog-description" className="sr-only">View and manage details for this asset</p>
         </DialogHeader>
         
         {loading ? (

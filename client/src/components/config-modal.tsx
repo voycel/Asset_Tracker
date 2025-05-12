@@ -959,9 +959,13 @@ export function ConfigModal({ isOpen, onClose, onSave }: ConfigModalProps) {
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0">
+        <DialogContent 
+          className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0"
+          aria-describedby="config-dialog-description"
+        >
           <DialogHeader className="px-6 py-4 border-b border-neutral-200 flex-shrink-0">
             <DialogTitle className="text-lg font-semibold text-neutral-900">Admin Configuration</DialogTitle>
+            <p id="config-dialog-description" className="sr-only">Configure system settings and manage assets</p>
           </DialogHeader>
           
           <div className="flex-1 overflow-hidden">
