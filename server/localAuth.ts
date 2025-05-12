@@ -138,12 +138,14 @@ export async function setupAuth(app: Express) {
 
 export const isAuthenticated: RequestHandler = async (req: any, res, next) => {
   if (!req.isAuthenticated()) {
+    console.log("User not authenticated, performing auto-login");
     // For local development, auto-login
     req.login(mockUser, (err) => {
       if (err) {
         console.error("Auto-login error:", err);
         return res.status(401).json({ message: "Unauthorized" });
       }
+      console.log("Auto-login successful, user:", req.user.id);
       return next();
     });
   } else {
@@ -152,6 +154,14 @@ export const isAuthenticated: RequestHandler = async (req: any, res, next) => {
       req.user.workspaceId = mockUser.workspaceId;
       console.log("Added workspaceId to authenticated user:", req.user.workspaceId);
     }
+
+    // Always log the current user state for debugging
+    console.log("User authenticated:", {
+      id: req.user.id,
+      workspaceId: req.user.workspaceId,
+      isAuthenticated: req.isAuthenticated()
+    });
+
     return next();
   }
 };

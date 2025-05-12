@@ -449,7 +449,37 @@ export class DatabaseStorage implements IStorage {
 
   // Asset operations
   async createAsset(asset: InsertAsset): Promise<Asset> {
-    const [newAsset] = await db.insert(assets).values(asset).returning();
+    // Create a copy of the asset data to avoid modifying the original
+    const assetData = { ...asset };
+
+    // Ensure dateAcquired is a proper Date object or null
+    if (assetData.dateAcquired !== undefined) {
+      if (assetData.dateAcquired === null) {
+        // Keep it as null
+      } else if (assetData.dateAcquired instanceof Date) {
+        // It's already a Date object, no need to convert
+      } else if (typeof assetData.dateAcquired === 'string') {
+        try {
+          // Try to parse the string into a Date
+          const parsedDate = new Date(assetData.dateAcquired);
+          if (!isNaN(parsedDate.getTime())) {
+            assetData.dateAcquired = parsedDate;
+          } else {
+            console.warn('Invalid date string, setting dateAcquired to null');
+            assetData.dateAcquired = null;
+          }
+        } catch (error) {
+          console.error('Error parsing date:', error);
+          assetData.dateAcquired = null;
+        }
+      } else {
+        // If it's neither a Date, null, nor a string, set it to null
+        console.warn('Invalid dateAcquired type, setting to null');
+        assetData.dateAcquired = null;
+      }
+    }
+
+    const [newAsset] = await db.insert(assets).values(assetData).returning();
     return newAsset;
   }
 
@@ -497,10 +527,42 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateAsset(id: number, asset: Partial<InsertAsset>): Promise<Asset | undefined> {
+    // Create a copy of the asset data to avoid modifying the original
+    const assetData = { ...asset };
+
+    // Ensure dateAcquired is a proper Date object or null
+    if (assetData.dateAcquired !== undefined) {
+      if (assetData.dateAcquired === null) {
+        // Keep it as null
+      } else if (assetData.dateAcquired instanceof Date) {
+        // It's already a Date object, no need to convert
+      } else if (typeof assetData.dateAcquired === 'string') {
+        try {
+          // Try to parse the string into a Date
+          const parsedDate = new Date(assetData.dateAcquired);
+          if (!isNaN(parsedDate.getTime())) {
+            assetData.dateAcquired = parsedDate;
+          } else {
+            console.warn('Invalid date string, setting dateAcquired to null');
+            assetData.dateAcquired = null;
+          }
+        } catch (error) {
+          console.error('Error parsing date:', error);
+          assetData.dateAcquired = null;
+        }
+      } else {
+        // If it's neither a Date, null, nor a string, set it to null
+        console.warn('Invalid dateAcquired type, setting to null');
+        assetData.dateAcquired = null;
+      }
+    }
+
+    // Always set updatedAt to the current date
     const [updatedAsset] = await db.update(assets)
-      .set({ ...asset, updatedAt: new Date() })
+      .set({ ...assetData, updatedAt: new Date() })
       .where(eq(assets.id, id))
       .returning();
+
     return updatedAsset;
   }
 

@@ -521,9 +521,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Assets API
-  app.get('/api/assets', async (req, res) => {
+  app.get('/api/assets', isAuthenticated, async (req: any, res) => {
     try {
-      const { workspaceId, assetTypeId, statusId, locationId, assignmentId, search } = req.query;
+      let { workspaceId, assetTypeId, statusId, locationId, assignmentId, search } = req.query;
+
+      // If workspaceId is not provided in the query, use the user's workspaceId
+      if (!workspaceId && req.user.workspaceId) {
+        console.log('Using user workspaceId for assets query:', req.user.workspaceId);
+        workspaceId = req.user.workspaceId;
+      }
+
+      console.log('Fetching assets with filters:', {
+        workspaceId, assetTypeId, statusId, locationId, assignmentId, search
+      });
+
       const assets = await storage.getAssets(
         workspaceId ? Number(workspaceId) : undefined,
         assetTypeId ? Number(assetTypeId) : undefined,
@@ -532,15 +543,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         assignmentId ? Number(assignmentId) : undefined,
         search ? String(search) : undefined
       );
+
+      console.log(`Found ${assets.length} assets matching criteria`);
       res.json(assets);
     } catch (error) {
-      res.status(500).json({ message: 'Error fetching assets' });
+      console.error('Error fetching assets:', error);
+      res.status(500).json({
+        message: 'Error fetching assets',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 
-  app.get('/api/assets/:id', async (req, res) => {
+  app.get('/api/assets/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const asset = await storage.getAsset(Number(req.params.id));
+      const assetId = Number(req.params.id);
+      console.log(`Fetching asset with ID: ${assetId} for user with workspaceId: ${req.user.workspaceId}`);
+
+      const asset = await storage.getAsset(assetId);
       if (!asset) {
         return res.status(404).json({ message: 'Asset not found' });
       }
@@ -553,14 +573,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ asset, customFieldValues, logs });
     } catch (error) {
-      res.status(500).json({ message: 'Error fetching asset' });
+      console.error('Error fetching asset:', error);
+      res.status(500).json({
+        message: 'Error fetching asset',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 
-  app.post('/api/assets', validateRequest(insertAssetSchema), async (req, res) => {
+  app.post('/api/assets', isAuthenticated, validateRequest(insertAssetSchema), async (req: any, res) => {
     try {
       // Extract custom field values from request
       const { customFieldValues, ...assetData } = req.body;
+
+      // Ensure workspaceId is set for the asset
+      if (!assetData.workspaceId && req.user.workspaceId) {
+        console.log('Adding workspaceId to asset creation data:', req.user.workspaceId);
+        assetData.workspaceId = req.user.workspaceId;
+      }
+
+      // Handle date fields properly
+      if (assetData.dateAcquired) {
+        try {
+          // If it's already a Date object, it will have toISOString method
+          if (typeof assetData.dateAcquired === 'string') {
+            // Parse the date string into a proper Date object
+            assetData.dateAcquired = new Date(assetData.dateAcquired);
+          }
+
+          // Validate that it's a valid date
+          if (isNaN(assetData.dateAcquired.getTime())) {
+            console.log('Invalid date detected, setting to null');
+            assetData.dateAcquired = null;
+          }
+        } catch (dateError) {
+          console.error('Error processing date:', dateError);
+          assetData.dateAcquired = null;
+        }
+      }
+
+      console.log('Creating asset with data:', JSON.stringify({
+        ...assetData,
+        dateAcquired: assetData.dateAcquired ? assetData.dateAcquired.toISOString() : null
+      }, null, 2));
 
       // Create the asset
       const asset = await storage.createAsset(assetData);
@@ -568,7 +623,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create log entry for asset creation
       await storage.createAssetLog({
         assetId: asset.id,
-        userId: req.body.userId,
+        userId: req.body.userId || req.user.id,
         actionType: 'CREATE',
         detailsJson: { message: 'Asset created' }
       });
@@ -585,15 +640,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.status(201).json(asset);
     } catch (error) {
-      res.status(500).json({ message: 'Error creating asset' });
+      console.error('Error creating asset:', error);
+      res.status(500).json({
+        message: 'Error creating asset',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 
-  app.put('/api/assets/:id', async (req, res) => {
+  app.put('/api/assets/:id', isAuthenticated, async (req: any, res) => {
     try {
       const { customFieldValues, ...assetData } = req.body;
 
+      // Ensure workspaceId is set for the asset
+      if (!assetData.workspaceId && req.user.workspaceId) {
+        console.log('Adding workspaceId to asset update data:', req.user.workspaceId);
+        assetData.workspaceId = req.user.workspaceId;
+      }
+
+      // Handle date fields properly
+      if (assetData.dateAcquired) {
+        try {
+          // If it's already a Date object, it will have toISOString method
+          if (typeof assetData.dateAcquired === 'string') {
+            // Parse the date string into a proper Date object
+            assetData.dateAcquired = new Date(assetData.dateAcquired);
+          }
+
+          // Validate that it's a valid date
+          if (isNaN(assetData.dateAcquired.getTime())) {
+            console.log('Invalid date detected, setting to null');
+            assetData.dateAcquired = null;
+          }
+        } catch (dateError) {
+          console.error('Error processing date:', dateError);
+          assetData.dateAcquired = null;
+        }
+      }
+
+      // Get the existing asset to verify it exists and belongs to the user's workspace
+      const existingAsset = await storage.getAsset(Number(req.params.id));
+      if (!existingAsset) {
+        return res.status(404).json({ message: 'Asset not found' });
+      }
+
       // Update the asset
+      console.log('Updating asset with data:', JSON.stringify({
+        ...assetData,
+        dateAcquired: assetData.dateAcquired ? assetData.dateAcquired.toISOString() : null
+      }, null, 2));
+
       const asset = await storage.updateAsset(Number(req.params.id), assetData);
       if (!asset) {
         return res.status(404).json({ message: 'Asset not found' });
@@ -602,7 +698,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create log entry for asset update
       await storage.createAssetLog({
         assetId: asset.id,
-        userId: req.body.userId,
+        userId: req.body.userId || req.user.id,
         actionType: 'UPDATE',
         detailsJson: {
           message: 'Asset updated',
@@ -633,7 +729,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(asset);
     } catch (error) {
-      res.status(500).json({ message: 'Error updating asset' });
+      console.error('Error updating asset:', error);
+      res.status(500).json({
+        message: 'Error updating asset',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 
