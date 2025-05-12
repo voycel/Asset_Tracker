@@ -1,0 +1,27 @@
+Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+chunk-RPCDYKBN.js?v=e61e673b:521 Warning: Connect(Droppable): Support for defaultProps will be removed from memo components in a future major release. Use JavaScript default parameters instead.
+    at div
+    at div
+    at Provider (https://ad0d7358-b6c9-446b-9fc1-405a7b44724d-00-2hgo6ycckytpv.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/react-beautiful-dnd.js?v=e61e673b:1738:20)
+    at App (https://ad0d7358-b6c9-446b-9fc1-405a7b44724d-00-2hgo6ycckytpv.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/react-beautiful-dnd.js?v=e61e673b:8281:25)
+    at ErrorBoundary2 (https://ad0d7358-b6c9-446b-9fc1-405a7b44724d-00-2hgo6ycckytpv.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/react-beautiful-dnd.js?v=e61e673b:2778:35)
+    at DragDropContext (https://ad0d7358-b6c9-446b-9fc1-405a7b44724d-00-2hgo6ycckytpv.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/react-beautiful-dnd.js?v=e61e673b:8401:19)
+    at KanbanBoard (https://ad0d7358-b6c9-446b-9fc1-405a7b44724d-00-2hgo6ycckytpv.spock.replit.dev/src/components/kanban-board.tsx?t=1747034176783:25:31)
+    at main
+    at div
+    at Dashboard (https://ad0d7358-b6c9-446b-9fc1-405a7b44724d-00-2hgo6ycckytpv.spock.replit.dev/src/pages/dashboard.tsx?t=1747034176783:29:27)
+    at ProtectedRoute (https://ad0d7358-b6c9-446b-9fc1-405a7b44724d-00-2hgo6ycckytpv.spock.replit.dev/src/App.tsx?t=1747034176783&v=UX9-0rZdxGTitoiRnd7Ir:39:38)
+    at Route (https://ad0d7358-b6c9-446b-9fc1-405a7b44724d-00-2hgo6ycckytpv.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=e61e673b:323:16)
+    at Switch (https://ad0d7358-b6c9-446b-9fc1-405a7b44724d-00-2hgo6ycckytpv.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=e61e673b:379:17)
+    at Router (https://ad0d7358-b6c9-446b-9fc1-405a7b44724d-00-2hgo6ycckytpv.spock.replit.dev/src/App.tsx?t=1747034176783&v=UX9-0rZdxGTitoiRnd7Ir:74:22)
+    at div
+    at div
+    at AppProvider (https://ad0d7358-b6c9-446b-9fc1-405a7b44724d-00-2hgo6ycckytpv.spock.replit.dev/src/context/app-context.tsx:22:31)
+    at Provider (https://ad0d7358-b6c9-446b-9fc1-405a7b44724d-00-2hgo6ycckytpv.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-M3NVYRND.js?v=e61e673b:48:15)
+    at TooltipProvider (https://ad0d7358-b6c9-446b-9fc1-405a7b44724d-00-2hgo6ycckytpv.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=e61e673b:59:5)
+    at ThemeProvider (https://ad0d7358-b6c9-446b-9fc1-405a7b44724d-00-2hgo6ycckytpv.spock.replit.dev/src/components/ui/theme-provider.tsx:25:3)
+    at QueryClientProvider (https://ad0d7358-b6c9-446b-9fc1-405a7b44724d-00-2hgo6ycckytpv.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=e61e673b:2805:3)
+    at App (https://ad0d7358-b6c9-446b-9fc1-405a7b44724d-00-2hgo6ycckytpv.spock.replit.dev/src/App.tsx?t=1747034176783&v=UX9-0rZdxGTitoiRnd7Ir:158:20)
+    at AppProvider (https://ad0d7358-b6c9-446b-9fc1-405a7b44724d-00-2hgo6ycckytpv.spock.replit.dev/src/context/app-context.tsx?v=UX9-0rZdxGTitoiRnd7Ir:22:31)
+printWarning @ chunk-RPCDYKBN.js?v=e61e673b:521Understand this error
+2activity-log.tsx:59 Error fetching logs: SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON

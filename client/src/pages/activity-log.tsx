@@ -47,11 +47,13 @@ export default function ActivityLog() {
     try {
       setLoading(true);
       
-      let url = "/api/logs";
-      if (selectedAssetId) {
-        url = `/api/assets/${selectedAssetId}/logs`;
+      if (!selectedAssetId) {
+        // If no asset is selected, we can't fetch logs because the API requires an asset ID
+        setLogs([]);
+        return;
       }
       
+      const url = `/api/assets/${selectedAssetId}/logs`;
       const response = await apiRequest("GET", url);
       const data = await response.json();
       setLogs(data);
@@ -154,7 +156,15 @@ export default function ActivityLog() {
       header: "Details",
       cell: ({ row }) => {
         const details = row.original.detailsJson;
-        return details?.message || "-";
+        if (!details) return "-";
+        
+        if (typeof details === 'string') {
+          return details;
+        } else if (typeof details === 'object' && details !== null && 'message' in details) {
+          return (details as any).message;
+        } else {
+          return JSON.stringify(details);
+        }
       },
     },
   ];
@@ -182,7 +192,16 @@ export default function ActivityLog() {
     const action = getActionDescription(log.actionType).toLowerCase();
     
     // Get details from the log
-    const details = log.detailsJson?.message?.toLowerCase() || "";
+    let details = "";
+    if (log.detailsJson) {
+      if (typeof log.detailsJson === 'string') {
+        details = log.detailsJson.toLowerCase();
+      } else if (typeof log.detailsJson === 'object' && log.detailsJson !== null && 'message' in log.detailsJson) {
+        details = ((log.detailsJson as any).message || "").toLowerCase();
+      } else {
+        details = JSON.stringify(log.detailsJson).toLowerCase();
+      }
+    }
     
     return action.includes(searchLower) || 
            assetName.includes(searchLower) || 
