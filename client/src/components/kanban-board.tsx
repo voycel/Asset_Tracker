@@ -4,7 +4,7 @@ import { AssetCard } from "./asset-card";
 import { Status, Location, Assignment, Asset } from "@shared/schema";
 import { useAppContext } from "@/context/app-context";
 import { apiRequest } from "@/lib/queryClient";
-import { AssetDetailModal } from "./asset-detail-modal";
+import { AssetDetailWrapper } from "@/pages/asset-detail-wrapper";
 import { useToast } from "@/hooks/use-toast";
 
 interface KanbanBoardProps {
@@ -299,7 +299,7 @@ export function KanbanBoard({ assets, groupBy, onAssetUpdated }: KanbanBoardProp
         </div>
       </DragDropContext>
 
-      <AssetDetailModal
+      <AssetDetailWrapper
         asset={selectedAsset}
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}

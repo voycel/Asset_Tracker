@@ -1,3 +1,4 @@
+import "dotenv/config"; // Added to load .env variables
 import { Pool, neonConfig } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import { sql } from 'drizzle-orm';

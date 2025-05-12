@@ -5,7 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 // Removed NewAssetModal import as it's no longer rendered here
 import {
   Workspace, AssetType, CustomFieldDefinition, Manufacturer,
-  Status, Location, Assignment, User, Asset
+  Status, Location, Assignment, User, Asset, Customer
 } from "@shared/schema";
 
 interface AppContextType {
@@ -18,6 +18,7 @@ interface AppContextType {
   statuses: Status[];
   locations: Location[];
   assignments: Assignment[];
+  customers: Customer[]; // Add customers to context
   user: User | null;
   refreshData: () => void;
   getCustomFieldsForAssetType: (assetTypeId: number) => Promise<CustomFieldDefinition[]>;
@@ -46,6 +47,7 @@ export const AppProvider = ({ children }: AppProviderProps) => {
   const [statuses, setStatuses] = useState<Status[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [isNewAssetModalOpen, setIsNewAssetModalOpen] = useState(false);
 
@@ -71,12 +73,12 @@ export const AppProvider = ({ children }: AppProviderProps) => {
         console.error("Auth error:", authError);
         setUser(null);
       }
-      
+
       // Fetch workspaces
       const workspacesResponse = await apiRequest("GET", "/api/workspaces");
       const workspacesData = await workspacesResponse.json();
       setWorkspaces(workspacesData);
-      
+
       if (workspacesData.length > 0 && !currentWorkspace) {
         setCurrentWorkspace(workspacesData[0]);
       }
@@ -105,6 +107,16 @@ export const AppProvider = ({ children }: AppProviderProps) => {
       const assignmentsResponse = await apiRequest("GET", "/api/assignments");
       const assignmentsData = await assignmentsResponse.json();
       setAssignments(assignmentsData);
+
+      // Fetch customers
+      try {
+        const customersResponse = await apiRequest("GET", "/api/customers");
+        const customersData = await customersResponse.json();
+        setCustomers(customersData);
+      } catch (customerError) {
+        console.error("Error fetching customers:", customerError);
+        setCustomers([]);
+      }
     } catch (error) {
       console.error("Error fetching initial data:", error);
     }
@@ -119,13 +131,13 @@ export const AppProvider = ({ children }: AppProviderProps) => {
     try {
       const response = await apiRequest("GET", `/api/asset-types/${assetTypeId}/fields`);
       const fieldsData = await response.json();
-      
+
       // Update the state
       setCustomFieldDefinitions(prev => ({
         ...prev,
         [assetTypeId]: fieldsData
       }));
-      
+
       return fieldsData;
     } catch (error) {
       console.error(`Error fetching custom fields for asset type ${assetTypeId}:`, error);
@@ -135,7 +147,7 @@ export const AppProvider = ({ children }: AppProviderProps) => {
 
   // Use a ref to only run fetch once
   const initialFetchDoneRef = useRef(false);
-  
+
   useEffect(() => {
     if (!initialFetchDoneRef.current) {
       initialFetchDoneRef.current = true;
@@ -148,7 +160,7 @@ export const AppProvider = ({ children }: AppProviderProps) => {
     queryClient.invalidateQueries({ queryKey: ['/api/assets'] });
     queryClient.invalidateQueries({ queryKey: ['/api/stats', currentWorkspace?.id] });
     // Consider if refetching *all* context data is necessary or if specific invalidations are better
-    fetchData(); 
+    fetchData();
   };
 
   const openNewAssetModal = () => setIsNewAssetModalOpen(true);
@@ -169,6 +181,7 @@ export const AppProvider = ({ children }: AppProviderProps) => {
         statuses,
         locations,
         assignments,
+        customers,
         user,
         refreshData,
         getCustomFieldsForAssetType,

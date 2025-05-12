@@ -2,20 +2,21 @@ import { getIconForAssetType, formatCurrency, formatDate } from "@/lib/utils";
 import { Asset } from "@shared/schema";
 import { useAppContext } from "@/context/app-context";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, User, Building, Calendar, DollarSign, Tag } from "lucide-react";
+import { MapPin, User, Building, Calendar, DollarSign, Tag, Briefcase } from "lucide-react";
 
 interface AssetCardProps {
   asset: Asset;
 }
 
 export function AssetCard({ asset }: AssetCardProps) {
-  const { assetTypes, statuses, locations, manufacturers, assignments } = useAppContext();
+  const { assetTypes, statuses, locations, manufacturers, assignments, customers } = useAppContext();
 
   const assetType = assetTypes.find(at => at.id === asset.assetTypeId);
   const status = statuses.find(s => s.id === asset.currentStatusId);
   const location = locations.find(l => l.id === asset.currentLocationId);
   const manufacturer = manufacturers.find(m => m.id === asset.manufacturerId);
   const assignment = assignments.find(a => a.id === asset.currentAssignmentId);
+  const customer = Array.isArray(customers) ? customers.find(c => c.id === asset.currentCustomerId) : null;
 
   const getStatusColor = () => {
     if (!status) return "bg-neutral-100 text-neutral-800 border-neutral-200";
@@ -47,10 +48,17 @@ export function AssetCard({ asset }: AssetCardProps) {
             </div>
             <div>
               <h4 className="text-sm font-medium text-neutral-800 line-clamp-1">{asset.name}</h4>
-              <div className="flex items-center mt-1">
-                <Tag className="h-3 w-3 text-neutral-400 mr-1" />
-                <p className="text-xs text-neutral-500">{asset.uniqueIdentifier}</p>
-              </div>
+              {asset.serialNumber ? (
+                <div className="flex items-center mt-1 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                  <Tag className="h-3 w-3 text-blue-500 mr-1" />
+                  <p className="text-xs font-mono font-medium text-blue-700">{asset.serialNumber}</p>
+                </div>
+              ) : (
+                <div className="flex items-center mt-1">
+                  <Tag className="h-3 w-3 text-neutral-400 mr-1" />
+                  <p className="text-xs text-neutral-500">{asset.uniqueIdentifier}</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -80,6 +88,12 @@ export function AssetCard({ asset }: AssetCardProps) {
           <div className="flex items-center text-xs text-neutral-600">
             <User className="h-3 w-3 text-neutral-400 mr-1 flex-shrink-0" />
             <span className="truncate">{assignment.name}</span>
+          </div>
+        )}
+        {customer && (
+          <div className="flex items-center text-xs text-neutral-600">
+            <Briefcase className="h-3 w-3 text-neutral-400 mr-1 flex-shrink-0" />
+            <span className="truncate">{customer.name}</span>
           </div>
         )}
         {asset.dateAcquired && (

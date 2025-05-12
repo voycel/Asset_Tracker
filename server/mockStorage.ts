@@ -23,12 +23,12 @@ export class MockStorage implements IStorage {
   private assetLogs: AssetLog[] = [];
   private subscriptionPlans: SubscriptionPlan[] = [];
   private subscriptions: Subscription[] = [];
-  
+
   constructor() {
     // Initialize with some default data
     this.initializeDefaultData();
   }
-  
+
   private initializeDefaultData() {
     // Create default workspace
     const workspace: Workspace = {
@@ -37,7 +37,7 @@ export class MockStorage implements IStorage {
       createdAt: new Date()
     };
     this.workspaces.push(workspace);
-    
+
     // Create default statuses
     this.statuses.push({
       id: 1,
@@ -67,7 +67,7 @@ export class MockStorage implements IStorage {
       color: '#EF4444',
       createdAt: new Date()
     });
-    
+
     // Create default location
     this.locations.push({
       id: 1,
@@ -76,7 +76,7 @@ export class MockStorage implements IStorage {
       description: 'Primary storage location',
       createdAt: new Date()
     });
-    
+
     // Create default subscription plans
     this.subscriptionPlans.push({
       id: 1,
@@ -95,7 +95,7 @@ export class MockStorage implements IStorage {
       createdAt: new Date(),
       updatedAt: new Date()
     });
-    
+
     this.subscriptionPlans.push({
       id: 2,
       name: 'Light',
@@ -114,7 +114,7 @@ export class MockStorage implements IStorage {
       createdAt: new Date(),
       updatedAt: new Date()
     });
-    
+
     this.subscriptionPlans.push({
       id: 3,
       name: 'Pro',
@@ -134,7 +134,7 @@ export class MockStorage implements IStorage {
       createdAt: new Date(),
       updatedAt: new Date()
     });
-    
+
     this.subscriptionPlans.push({
       id: 4,
       name: 'Enterprise',
@@ -190,6 +190,13 @@ export class MockStorage implements IStorage {
       // Create new user
       return this.createUser(userData as InsertUser);
     }
+  }
+
+  async getUsers(workspaceId?: number): Promise<User[]> {
+    if (workspaceId) {
+      return this.users.filter(user => user.workspaceId === workspaceId);
+    }
+    return this.users;
   }
 
   // Workspace operations
@@ -254,10 +261,10 @@ export class MockStorage implements IStorage {
 
   // Implement other methods as needed for your application
   // This is a simplified version for local development
-  
+
   // Status operations
   async getStatuses(workspaceId?: number, assetTypeId?: number): Promise<Status[]> {
-    return this.statuses.filter(status => 
+    return this.statuses.filter(status =>
       (!workspaceId || status.workspaceId === workspaceId) &&
       (!assetTypeId || status.assetTypeId === assetTypeId)
     );
@@ -293,7 +300,7 @@ export class MockStorage implements IStorage {
 
   // Location operations
   async getLocations(workspaceId?: number, assetTypeId?: number): Promise<Location[]> {
-    return this.locations.filter(location => 
+    return this.locations.filter(location =>
       (!workspaceId || location.workspaceId === workspaceId) &&
       (!assetTypeId || location.assetTypeId === assetTypeId)
     );

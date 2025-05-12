@@ -7,7 +7,7 @@ import { useAppContext } from "@/context/app-context";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
-import { AssetDetailModal } from "@/components/asset-detail-modal";
+import { AssetDetailWrapper } from "@/pages/asset-detail-wrapper";
 import { formatDate, formatCurrency, getIconForAssetType } from "@/lib/utils";
 import { Eye, Edit, Archive } from "lucide-react";
 import {
@@ -47,17 +47,17 @@ export default function Assets() {
   const fetchAssets = async () => {
     try {
       setLoading(true);
-      
+
       let url = "/api/assets?";
-      
+
       if (currentWorkspace) {
         url += `workspaceId=${currentWorkspace.id}&`;
       }
-      
+
       if (searchQuery) {
         url += `search=${encodeURIComponent(searchQuery)}&`;
       }
-      
+
       const response = await apiRequest("GET", url);
       const data = await response.json();
       setAssets(data);
@@ -89,18 +89,18 @@ export default function Assets() {
 
   const handleArchiveAsset = async () => {
     if (!archiveConfirmAsset) return;
-    
+
     try {
       setLoading(true);
       await apiRequest("PATCH", `/api/assets/${archiveConfirmAsset.id}/archive`, {
         userId: user?.id
       });
-      
+
       toast({
         title: "Asset archived",
         description: `${archiveConfirmAsset.name} has been archived successfully.`,
       });
-      
+
       fetchAssets();
     } catch (error) {
       console.error("Error archiving asset:", error);
@@ -123,7 +123,7 @@ export default function Assets() {
         const asset = row.original;
         const assetType = assetTypes.find(at => at.id === asset.assetTypeId);
         const icon = getIconForAssetType(assetType?.name);
-        
+
         return (
           <div className="flex items-center">
             <span className="material-icons text-neutral-500 mr-2">{icon}</span>
@@ -157,13 +157,13 @@ export default function Assets() {
       cell: ({ row }) => {
         const asset = row.original;
         const status = statuses.find(s => s.id === asset.currentStatusId);
-        
+
         if (!status) return <div>-</div>;
-        
+
         const statusName = status.name.toLowerCase();
         let bgColor = "bg-neutral-100";
         let textColor = "text-neutral-800";
-        
+
         if (statusName.includes("available")) {
           bgColor = "bg-neutral-100";
           textColor = "text-neutral-800";
@@ -177,7 +177,7 @@ export default function Assets() {
           bgColor = "bg-red-100";
           textColor = "text-red-800";
         }
-        
+
         return (
           <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${bgColor} ${textColor}`}>
             {status.name}
@@ -242,26 +242,26 @@ export default function Assets() {
   return (
     <>
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header 
-          title="Assets" 
-          onMenuClick={() => setSidebarOpen(!sidebarOpen)} 
+        <Header
+          title="Assets"
+          onMenuClick={() => setSidebarOpen(!sidebarOpen)}
           onSearch={handleSearch}
           searchQuery={searchQuery}
         />
-        
+
         <main className="flex-1 overflow-x-auto bg-neutral-50 p-4 sm:p-6 lg:p-8">
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-xl font-semibold mb-6">Assets</h2>
-            
+
             {loading ? (
               <div className="animate-pulse">
                 <div className="h-10 bg-neutral-200 rounded mb-4"></div>
                 <div className="h-64 bg-neutral-200 rounded"></div>
               </div>
             ) : (
-              <DataTable 
-                columns={columns} 
-                data={assets} 
+              <DataTable
+                columns={columns}
+                data={assets}
                 searchColumn="name"
                 searchPlaceholder="Search assets by name, ID, or attributes..."
               />
@@ -270,7 +270,7 @@ export default function Assets() {
         </main>
       </div>
 
-      <AssetDetailModal
+      <AssetDetailWrapper
         asset={selectedAsset}
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
@@ -285,7 +285,7 @@ export default function Assets() {
           <AlertDialogHeader>
             <AlertDialogTitle>Archive Asset</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to archive the asset "{archiveConfirmAsset?.name}"? 
+              Are you sure you want to archive the asset "{archiveConfirmAsset?.name}"?
               Archived assets will no longer appear in the main view but can be restored later.
             </AlertDialogDescription>
           </AlertDialogHeader>

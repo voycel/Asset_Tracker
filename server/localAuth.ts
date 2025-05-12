@@ -10,12 +10,12 @@ const MemoryStoreSession = MemoryStore(session);
 
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
-  
+
   // Use memory store for local development
   const sessionStore = new MemoryStoreSession({
     checkPeriod: 86400000 // prune expired entries every 24h
   });
-  
+
   return session({
     secret: process.env.SESSION_SECRET || "asset-tracker-session-secret",
     store: sessionStore,
@@ -38,6 +38,7 @@ const mockUser = {
   profile_image_url: null,
   role: "admin",
   isWorkspaceOwner: true,
+  workspaceId: 1, // Default workspace ID
   claims: {
     sub: "local-dev-user",
     email: "local@example.com",
@@ -57,6 +58,34 @@ export async function setupAuth(app: Express) {
 
   // Create a mock user in the database if it doesn't exist
   try {
+    // First, ensure we have a default workspace
+    const workspaces = await storage.getWorkspaces();
+    let workspaceId = 1;
+
+    if (workspaces.length === 0) {
+      // Create a default workspace if none exists
+      const workspace = await storage.createWorkspace({ name: 'Default Workspace' });
+      workspaceId = workspace.id;
+      console.log("Created default workspace with ID:", workspaceId);
+
+      // Create some default statuses for the new workspace
+      await storage.createStatus({
+        workspaceId: workspaceId,
+        name: 'Available',
+        color: '#6B7280'
+      });
+      await storage.createStatus({
+        workspaceId: workspaceId,
+        name: 'In Use',
+        color: '#10B981'
+      });
+    } else {
+      workspaceId = workspaces[0].id;
+    }
+
+    // Update the mock user with the correct workspace ID
+    mockUser.workspaceId = workspaceId;
+
     const existingUser = await storage.getUser(mockUser.id);
     if (!existingUser) {
       await storage.upsertUser({
@@ -66,12 +95,20 @@ export async function setupAuth(app: Express) {
         last_name: mockUser.last_name,
         profile_image_url: mockUser.profile_image_url,
         role: mockUser.role,
-        isWorkspaceOwner: mockUser.isWorkspaceOwner
+        isWorkspaceOwner: mockUser.isWorkspaceOwner,
+        workspaceId: workspaceId // Add the workspace ID
       });
-      console.log("Created mock user for local development");
+      console.log("Created mock user for local development with workspace ID:", workspaceId);
+    } else if (!existingUser.workspaceId) {
+      // Update the existing user with a workspace ID if it doesn't have one
+      await storage.upsertUser({
+        ...existingUser,
+        workspaceId: workspaceId
+      });
+      console.log("Updated existing mock user with workspace ID:", workspaceId);
     }
   } catch (error) {
-    console.error("Failed to create mock user:", error);
+    console.error("Failed to create/update mock user:", error);
   }
 
   passport.serializeUser((user: Express.User, cb) => cb(null, user));
@@ -99,7 +136,7 @@ export async function setupAuth(app: Express) {
   });
 }
 
-export const isAuthenticated: RequestHandler = async (req, res, next) => {
+export const isAuthenticated: RequestHandler = async (req: any, res, next) => {
   if (!req.isAuthenticated()) {
     // For local development, auto-login
     req.login(mockUser, (err) => {
@@ -110,6 +147,11 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
       return next();
     });
   } else {
+    // Ensure the user has a workspaceId
+    if (!req.user.workspaceId && mockUser.workspaceId) {
+      req.user.workspaceId = mockUser.workspaceId;
+      console.log("Added workspaceId to authenticated user:", req.user.workspaceId);
+    }
     return next();
   }
 };

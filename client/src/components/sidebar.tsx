@@ -13,6 +13,7 @@ import {
   MenuIcon,
   XIcon,
   CreditCardIcon,
+  UsersIcon, // Added for Customers link
 } from "lucide-react";
 
 interface SidebarProps {
@@ -27,6 +28,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
   const navigation = [
     { name: "Dashboard", href: "/", icon: HomeIcon },
     { name: "Assets", href: "/assets", icon: BoxesIcon },
+    { name: "Customers", href: "/customers", icon: UsersIcon }, // Added Customers link
     { name: "Asset Types", href: "/asset-types", icon: TagsIcon },
     { name: "Configuration", href: "/configuration", icon: SettingsIcon },
     { name: "Activity Log", href: "/activity-log", icon: ClockIcon },

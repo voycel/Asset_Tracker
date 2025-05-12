@@ -10,6 +10,7 @@ import {
 import { Columns2, ListIcon, FilterIcon, LayoutGridIcon, TagIcon } from "lucide-react";
 import { AssetType, Status, Location, Assignment } from "@shared/schema";
 import { useAppContext } from "@/context/app-context";
+import { WorkflowStatusCreator } from "@/components/workflow-status-creator";
 
 interface DashboardFiltersProps {
   activeView: "kanban" | "list";
@@ -76,8 +77,8 @@ export function DashboardFilters({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuRadioGroup value={statusFilter?.toString() || ""} onValueChange={(value) => onStatusFilterChange(value ? Number(value) : null)}>
-                <DropdownMenuRadioItem value="">All Statuses</DropdownMenuRadioItem>
+              <DropdownMenuRadioGroup value={statusFilter?.toString() || "all"} onValueChange={(value) => onStatusFilterChange(value && value !== "all" ? Number(value) : null)}>
+                <DropdownMenuRadioItem value="all">All Statuses</DropdownMenuRadioItem>
                 {statuses.map((status) => (
                   <DropdownMenuRadioItem key={status.id} value={status.id.toString()}>
                     {status.name}
@@ -109,15 +110,15 @@ export function DashboardFilters({
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="inline-flex items-center">
                 <TagIcon className="h-4 w-4 mr-1" />
-                {assetTypeFilter 
+                {assetTypeFilter
                   ? assetTypes.find(at => at.id === assetTypeFilter)?.name || "All Types"
                   : "All Types"
                 }
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuRadioGroup value={assetTypeFilter?.toString() || ""} onValueChange={(value) => onAssetTypeFilterChange(value ? Number(value) : null)}>
-                <DropdownMenuRadioItem value="">All Types</DropdownMenuRadioItem>
+              <DropdownMenuRadioGroup value={assetTypeFilter?.toString() || "all"} onValueChange={(value) => onAssetTypeFilterChange(value && value !== "all" ? Number(value) : null)}>
+                <DropdownMenuRadioItem value="all">All Types</DropdownMenuRadioItem>
                 {assetTypes.map((assetType) => (
                   <DropdownMenuRadioItem key={assetType.id} value={assetType.id.toString()}>
                     {assetType.name}
@@ -126,6 +127,9 @@ export function DashboardFilters({
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Workflow Status Creator */}
+          <WorkflowStatusCreator />
         </div>
       </div>
     </div>

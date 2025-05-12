@@ -7,20 +7,35 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate, formatDateTime, formatCurrency, getIconForAssetType } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import { 
-  Archive, Edit, QrCode, History, BookmarkPlus, 
-  CheckCircle, Circle, Wrench, AlertCircle
+import {
+  Archive, Edit, QrCode, History, BookmarkPlus,
+  CheckCircle, Circle, Wrench, AlertCircle, Link as LinkIcon
 } from "lucide-react";
+import { AssetRelationshipManager } from "@/components/asset-relationship-manager";
+import { AssetModals } from "@/components/asset-modals";
 
 interface AssetDetailModalProps {
   asset: Asset | null;
   isOpen: boolean;
   onClose: () => void;
   onAssetUpdated: () => void;
+  onEditClick?: (assetDetails: any) => void;
+  onQRCodeClick?: () => void;
 }
 
-export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated }: AssetDetailModalProps) {
-  const { assetTypes, manufacturers, statuses, locations, assignments, getCustomFieldsForAssetType, user } = useAppContext();
+
+
+export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated, onEditClick, onQRCodeClick }: AssetDetailModalProps) {
+  const {
+    assetTypes,
+    manufacturers,
+    statuses,
+    locations,
+    assignments,
+    getCustomFieldsForAssetType,
+    user,
+    customers // Add customers from context
+  } = useAppContext();
   const [loading, setLoading] = useState(false);
   const [assetDetails, setAssetDetails] = useState<{
     asset: Asset;
@@ -28,18 +43,19 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated }: Ass
     logs: AssetLog[];
   } | null>(null);
   const [customFields, setCustomFields] = useState<CustomFieldDefinition[]>([]);
+  const [isRelationshipModalOpen, setIsRelationshipModalOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     const fetchAssetDetails = async () => {
       if (!asset) return;
-      
+
       try {
         setLoading(true);
         const response = await apiRequest("GET", `/api/assets/${asset.id}`);
         const data = await response.json();
         setAssetDetails(data);
-        
+
         // Fetch custom fields for this asset type
         const fields = await getCustomFieldsForAssetType(asset.assetTypeId);
         setCustomFields(fields);
@@ -67,6 +83,7 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated }: Ass
   const currentStatus = statuses.find(s => s.id === asset.currentStatusId);
   const currentLocation = locations.find(l => l.id === asset.currentLocationId);
   const currentAssignment = assignments.find(a => a.id === asset.currentAssignmentId);
+  const currentCustomer = Array.isArray(customers) ? customers.find(c => c.id === asset.currentCustomerId) : null;
 
   const updateAssetStatus = async (statusId: number) => {
     try {
@@ -75,12 +92,12 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated }: Ass
         statusId,
         userId: user?.id
       });
-      
+
       toast({
         title: "Status updated",
         description: `Asset status has been updated successfully.`
       });
-      
+
       onAssetUpdated();
     } catch (error) {
       console.error("Error updating asset status:", error);
@@ -101,12 +118,12 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated }: Ass
         locationId,
         userId: user?.id
       });
-      
+
       toast({
         title: "Location updated",
         description: `Asset location has been updated successfully.`
       });
-      
+
       onAssetUpdated();
     } catch (error) {
       console.error("Error updating asset location:", error);
@@ -127,12 +144,12 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated }: Ass
         assignmentId,
         userId: user?.id
       });
-      
+
       toast({
         title: "Assignment updated",
         description: `Asset assignment has been updated successfully.`
       });
-      
+
       onAssetUpdated();
     } catch (error) {
       console.error("Error updating asset assignment:", error);
@@ -146,18 +163,44 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated }: Ass
     }
   };
 
+  const updateAssetCustomer = async (customerId: number | null) => {
+    try {
+      setLoading(true);
+      await apiRequest("PATCH", `/api/assets/${asset.id}/customer`, {
+        customerId,
+        userId: user?.id
+      });
+
+      toast({
+        title: "Customer updated",
+        description: `Asset customer assignment has been updated successfully.`
+      });
+
+      onAssetUpdated();
+    } catch (error) {
+      console.error("Error updating asset customer:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update asset customer assignment.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const archiveAsset = async () => {
     try {
       setLoading(true);
       await apiRequest("PATCH", `/api/assets/${asset.id}/archive`, {
         userId: user?.id
       });
-      
+
       toast({
         title: "Asset archived",
         description: `Asset has been archived successfully.`
       });
-      
+
       onAssetUpdated();
     } catch (error) {
       console.error("Error archiving asset:", error);
@@ -173,17 +216,17 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated }: Ass
 
   const getCustomFieldValue = (fieldId: number) => {
     if (!assetDetails) return null;
-    
+
     const fieldValue = assetDetails.customFieldValues.find(
       v => v.fieldDefinitionId === fieldId
     );
-    
+
     if (!fieldValue) return null;
-    
+
     // Find the definition to determine the field type
     const fieldDef = customFields.find(f => f.id === fieldId);
     if (!fieldDef) return null;
-    
+
     switch (fieldDef.fieldType) {
       case 'Text':
         return fieldValue.textValue;
@@ -210,6 +253,10 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated }: Ass
         return <BookmarkPlus className="text-blue-700" size={16} />;
       case 'ASSIGNED':
         return <CheckCircle className="text-purple-700" size={16} />;
+      case 'CUSTOMER_ASSIGNED':
+        return <CheckCircle className="text-orange-700" size={16} />;
+      case 'RELATIONSHIP_CREATED':
+        return <LinkIcon className="text-blue-700" size={16} />;
       case 'ARCHIVE':
         return <Archive className="text-red-700" size={16} />;
       default:
@@ -219,27 +266,27 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated }: Ass
 
   const getStatusButtonClass = (status: string) => {
     const isSelected = currentStatus?.name === status;
-    
+
     if (status === "Available") {
-      return isSelected 
-        ? "bg-neutral-100 text-neutral-800 border-2 border-neutral-300" 
+      return isSelected
+        ? "bg-neutral-100 text-neutral-800 border-2 border-neutral-300"
         : "bg-white hover:bg-neutral-50 border border-neutral-300";
     } else if (status === "In Use") {
-      return isSelected 
-        ? "bg-green-100 text-green-800 border-2 border-green-300" 
+      return isSelected
+        ? "bg-green-100 text-green-800 border-2 border-green-300"
         : "bg-white hover:bg-neutral-50 border border-neutral-300";
     } else if (status === "In Maintenance") {
-      return isSelected 
-        ? "bg-yellow-100 text-yellow-800 border-2 border-yellow-300" 
+      return isSelected
+        ? "bg-yellow-100 text-yellow-800 border-2 border-yellow-300"
         : "bg-white hover:bg-neutral-50 border border-neutral-300";
     } else if (status === "Requires Attention") {
-      return isSelected 
-        ? "bg-red-100 text-red-800 border-2 border-red-300" 
+      return isSelected
+        ? "bg-red-100 text-red-800 border-2 border-red-300"
         : "bg-white hover:bg-neutral-50 border border-neutral-300";
     }
-    
-    return isSelected 
-      ? "bg-blue-100 text-blue-800 border-2 border-blue-300" 
+
+    return isSelected
+      ? "bg-blue-100 text-blue-800 border-2 border-blue-300"
       : "bg-white hover:bg-neutral-50 border border-neutral-300";
   };
 
@@ -247,7 +294,7 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated }: Ass
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent 
+      <DialogContent
         className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0"
         aria-describedby="asset-details-dialog-description"
       >
@@ -255,7 +302,7 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated }: Ass
           <DialogTitle className="text-lg font-semibold text-neutral-900">Asset Details</DialogTitle>
           <p id="asset-details-dialog-description" className="sr-only">View and manage details for this asset</p>
         </DialogHeader>
-        
+
         {loading ? (
           <div className="p-6 flex-1 overflow-y-auto">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -319,7 +366,7 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated }: Ass
                       </div>
                     </div>
                     {currentStatus && (
-                      <span 
+                      <span
                         className={`text-sm px-3 py-1 font-medium rounded-full ${
                           currentStatus.name.toLowerCase().includes("available") ? "bg-neutral-100 text-neutral-800" :
                           currentStatus.name.toLowerCase().includes("in use") ? "bg-green-100 text-green-800" :
@@ -332,7 +379,7 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated }: Ass
                       </span>
                     )}
                   </div>
-                  
+
                   {/* Asset Fields */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {manufacturer && (
@@ -357,7 +404,7 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated }: Ass
                       <h4 className="text-xs font-medium text-neutral-500 uppercase">Last Updated</h4>
                       <p className="text-sm text-neutral-800">{formatDate(asset.updatedAt)}</p>
                     </div>
-                    
+
                     {/* Render custom fields */}
                     {customFields.map(field => (
                       <div key={field.id}>
@@ -374,11 +421,11 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated }: Ass
                     </div>
                   )}
                 </div>
-                
+
                 {/* Activity Log */}
                 <div className="bg-white border border-neutral-200 rounded-lg shadow-sm p-4">
                   <h3 className="text-base font-medium text-neutral-900 mb-4">Activity Log</h3>
-                  
+
                   {assetDetails?.logs && assetDetails.logs.length > 0 ? (
                     <div className="space-y-4">
                       {assetDetails.logs.slice(0, 10).map(log => (
@@ -396,8 +443,10 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated }: Ass
                                 {log.actionType === 'UPDATE_STATUS' && 'Status changed'}
                                 {log.actionType === 'UPDATE_LOCATION' && 'Location changed'}
                                 {log.actionType === 'ASSIGNED' && 'Assignment changed'}
+                                {log.actionType === 'CUSTOMER_ASSIGNED' && 'Customer assigned'}
+                                {log.actionType === 'RELATIONSHIP_CREATED' && 'Relationship created'}
                                 {log.actionType === 'ARCHIVE' && 'Asset archived'}
-                                {!['CREATE', 'UPDATE', 'UPDATE_STATUS', 'UPDATE_LOCATION', 'ASSIGNED', 'ARCHIVE'].includes(log.actionType) && log.actionType}
+                                {!['CREATE', 'UPDATE', 'UPDATE_STATUS', 'UPDATE_LOCATION', 'ASSIGNED', 'CUSTOMER_ASSIGNED', 'RELATIONSHIP_CREATED', 'ARCHIVE'].includes(log.actionType) && log.actionType}
                               </span>
                             </div>
                             <div className="mt-1 text-xs text-neutral-500">
@@ -407,8 +456,8 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated }: Ass
                             </div>
                             {log.detailsJson && (
                               <p className="mt-1 text-sm text-neutral-600">
-                                {typeof log.detailsJson === 'string' 
-                                  ? log.detailsJson 
+                                {typeof log.detailsJson === 'string'
+                                  ? log.detailsJson
                                   : (typeof log.detailsJson === 'object' && log.detailsJson !== null && 'message' in log.detailsJson)
                                     ? (log.detailsJson as any).message
                                     : JSON.stringify(log.detailsJson)
@@ -424,7 +473,7 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated }: Ass
                   )}
                 </div>
               </div>
-              
+
               {/* Right Column - Status, Location, Assignment */}
               <div>
                 {/* Status */}
@@ -432,7 +481,7 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated }: Ass
                   <h3 className="text-base font-medium text-neutral-900 mb-3">Status</h3>
                   <div className="space-y-2">
                     {statuses.map(status => (
-                      <button 
+                      <button
                         key={status.id}
                         onClick={() => updateAssetStatus(status.id)}
                         className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md ${getStatusButtonClass(status.name)}`}
@@ -449,60 +498,122 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated }: Ass
                     ))}
                   </div>
                 </div>
-                
+
                 {/* Location */}
                 <div className="bg-white border border-neutral-200 rounded-lg shadow-sm p-4 mb-4">
                   <h3 className="text-base font-medium text-neutral-900 mb-3">Location</h3>
-                  <select 
+                  <select
                     className="block w-full rounded-md border-neutral-300 py-2 pl-3 pr-10 text-sm focus:border-primary-500 focus:ring-primary-500"
-                    value={asset.currentLocationId?.toString() || ""}
-                    onChange={(e) => updateAssetLocation(e.target.value ? Number(e.target.value) : null)}
+                    value={asset.currentLocationId?.toString() || "none"}
+                    onChange={(e) => updateAssetLocation(e.target.value && e.target.value !== "none" ? Number(e.target.value) : null)}
                     disabled={loading}
                   >
-                    <option value="">Unassigned</option>
+                    <option value="none">Unassigned</option>
                     {locations.map(location => (
                       <option key={location.id} value={location.id}>{location.name}</option>
                     ))}
                   </select>
                 </div>
-                
+
                 {/* Assignment */}
                 <div className="bg-white border border-neutral-200 rounded-lg shadow-sm p-4 mb-4">
                   <h3 className="text-base font-medium text-neutral-900 mb-3">Assignment</h3>
-                  <select 
+                  <select
                     className="block w-full rounded-md border-neutral-300 py-2 pl-3 pr-10 text-sm focus:border-primary-500 focus:ring-primary-500"
-                    value={asset.currentAssignmentId?.toString() || ""}
-                    onChange={(e) => updateAssetAssignment(e.target.value ? Number(e.target.value) : null)}
+                    value={asset.currentAssignmentId?.toString() || "none"}
+                    onChange={(e) => updateAssetAssignment(e.target.value && e.target.value !== "none" ? Number(e.target.value) : null)}
                     disabled={loading}
                   >
-                    <option value="">Unassigned</option>
+                    <option value="none">Unassigned</option>
                     {assignments.map(assignment => (
                       <option key={assignment.id} value={assignment.id}>{assignment.name}</option>
                     ))}
                   </select>
                 </div>
-                
+
+                {/* Customer */}
+                <div className="bg-white border border-neutral-200 rounded-lg shadow-sm p-4 mb-4">
+                  <h3 className="text-base font-medium text-neutral-900 mb-3">Customer</h3>
+                  <select
+                    className="block w-full rounded-md border-neutral-300 py-2 pl-3 pr-10 text-sm focus:border-primary-500 focus:ring-primary-500"
+                    value={asset.currentCustomerId?.toString() || "none"}
+                    onChange={(e) => updateAssetCustomer(e.target.value && e.target.value !== "none" ? Number(e.target.value) : null)}
+                    disabled={loading}
+                  >
+                    <option value="none">No Customer</option>
+                    {customers?.map(customer => (
+                      <option key={customer.id} value={customer.id}>{customer.name}</option>
+                    ))}
+                  </select>
+                  {currentCustomer && (
+                    <div className="mt-2 text-sm">
+                      {currentCustomer.email && (
+                        <div className="flex items-center text-neutral-600 mt-1">
+                          <span className="material-icons text-neutral-400 mr-1" style={{ fontSize: "14px" }}>email</span>
+                          <span>{currentCustomer.email}</span>
+                        </div>
+                      )}
+                      {currentCustomer.phone && (
+                        <div className="flex items-center text-neutral-600 mt-1">
+                          <span className="material-icons text-neutral-400 mr-1" style={{ fontSize: "14px" }}>phone</span>
+                          <span>{currentCustomer.phone}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 {/* Actions */}
                 <div className="bg-white border border-neutral-200 rounded-lg shadow-sm p-4">
                   <h3 className="text-base font-medium text-neutral-900 mb-3">Actions</h3>
                   <div className="space-y-2">
-                    <Button className="w-full">
+                    <Button
+                      className="w-full"
+                      onClick={() => onEditClick && onEditClick(assetDetails)}
+                      disabled={loading || !onEditClick}
+                    >
                       <Edit className="mr-1 h-5 w-5" />
                       Edit Asset
                     </Button>
-                    
-                    <Button variant="outline" className="w-full">
+
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => onQRCodeClick && onQRCodeClick()}
+                      disabled={loading || !onQRCodeClick}
+                    >
                       <QrCode className="mr-1 h-5 w-5" />
                       Generate QR Code
                     </Button>
-                    
-                    <Button variant="outline" className="w-full">
+
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        // For now, just show all logs in the current view
+                        toast({
+                          title: "Full history",
+                          description: "Viewing all available logs in the current view."
+                        });
+                      }}
+                      disabled={loading}
+                    >
                       <History className="mr-1 h-5 w-5" />
                       View Full History
                     </Button>
-                    
-                    <Button 
-                      variant="outline" 
+
+                    <Button
+                      variant="outline"
+                      className="w-full text-blue-700 border-blue-300 hover:bg-blue-50 hover:text-blue-800 mb-2"
+                      onClick={() => setIsRelationshipModalOpen(true)}
+                      disabled={loading}
+                    >
+                      <LinkIcon className="mr-1 h-5 w-5" />
+                      Manage Relationships
+                    </Button>
+
+                    <Button
+                      variant="outline"
                       className="w-full text-red-700 border-red-300 hover:bg-red-50 hover:text-red-800"
                       onClick={archiveAsset}
                       disabled={loading}
@@ -517,6 +628,16 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated }: Ass
           </div>
         )}
       </DialogContent>
+
+      {/* Asset Relationship Manager */}
+      {asset && (
+        <AssetRelationshipManager
+          assetId={asset.id}
+          isOpen={isRelationshipModalOpen}
+          onClose={() => setIsRelationshipModalOpen(false)}
+          onRelationshipsUpdated={onAssetUpdated}
+        />
+      )}
     </Dialog>
   );
 }

@@ -16,6 +16,7 @@ import Configuration from "@/pages/configuration";
 import ActivityLog from "@/pages/activity-log";
 import ExportData from "@/pages/export-data";
 import Subscription from "@/pages/subscription";
+import { CustomersPage } from "@/pages/customers"; // Corrected: Named import
 import Login from "@/pages/login";
 import Landing from "@/pages/landing";
 import { useMediaQuery } from "@/hooks/use-mobile";
@@ -62,25 +63,28 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/landing" component={Landing} />
       <Route path="/">
-        {() => <ProtectedRoute component={Dashboard} />}
+        <ProtectedRoute component={Dashboard} />
       </Route>
       <Route path="/assets">
-        {() => <ProtectedRoute component={Assets} />}
+        <ProtectedRoute component={Assets} />
       </Route>
       <Route path="/asset-types">
-        {() => <ProtectedRoute component={AssetTypes} />}
+        <ProtectedRoute component={AssetTypes} />
       </Route>
       <Route path="/configuration">
-        {() => <ProtectedRoute component={Configuration} />}
+        <ProtectedRoute component={Configuration} />
       </Route>
       <Route path="/activity-log">
-        {() => <ProtectedRoute component={ActivityLog} />}
+        <ProtectedRoute component={ActivityLog} />
       </Route>
       <Route path="/export">
-        {() => <ProtectedRoute component={ExportData} />}
+        <ProtectedRoute component={ExportData} />
       </Route>
       <Route path="/subscription">
-        {() => <ProtectedRoute component={Subscription} />}
+        <ProtectedRoute component={Subscription} />
+      </Route>
+      <Route path="/customers"> {/* Add route for Customers */}
+        <ProtectedRoute component={CustomersPage} />
       </Route>
       <Route component={NotFound} />
     </Switch>
