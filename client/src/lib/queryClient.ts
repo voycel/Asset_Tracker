@@ -12,10 +12,20 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  // Custom JSON stringifier that properly handles Date objects
+  const dateSerializer = (key: string, value: any) => {
+    // Convert Date objects to ISO strings to ensure they're properly formatted for the server
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    return value;
+  };
+
   const res = await fetch(url, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
-    body: data ? JSON.stringify(data) : undefined,
+    // Use custom serializer to properly handle Date objects
+    body: data ? JSON.stringify(data, dateSerializer) : undefined,
     credentials: "include",
   });
 

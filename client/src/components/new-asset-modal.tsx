@@ -142,14 +142,25 @@ export function NewAssetModal({
       setLoading(true);
       
       // Create the asset with properly formatted data
-      // Zod transform has already converted the string date to a Date object
+      // We need to manually convert the date string to a Date object
+      const date = data.dateAcquired ? new Date(data.dateAcquired) : undefined;
+      
+      // Log for debugging
+      console.log("Original date value:", data.dateAcquired);
+      console.log("Converted date value:", date);
+      
       const formattedData = {
         ...data,
-        // The dateAcquired is already a Date object thanks to the zod transform
+        // Replace the string date with a Date object
+        dateAcquired: date,
         cost: data.cost ? data.cost.toString() : "",
         userId: user?.id,
       };
       
+      // Log the final formatted data to check what we're sending
+      console.log("Formatted data:", formattedData);
+      
+      // apiRequest now has a custom JSON serializer that properly handles Date objects
       const response = await apiRequest("POST", "/api/assets", formattedData);
       
       if (!response.ok) {
@@ -350,7 +361,8 @@ export function NewAssetModal({
                     id="purchaseDate" 
                     type="date" 
                     {...register("dateAcquired", {
-                      setValueAs: (value) => value ? value : undefined
+                      // Just pass the value as is, we'll handle conversion in processFormSubmit
+                      setValueAs: (value) => value || undefined
                     })}
                     disabled={loading}
                   />
