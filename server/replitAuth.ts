@@ -57,13 +57,28 @@ function updateUserSession(
 async function upsertUser(
   claims: any,
 ) {
-  await storage.upsertUser({
+  console.log("Claims received:", JSON.stringify(claims, null, 2));
+  
+  // Create user data object with required id field
+  const userData = {
     id: claims["sub"],
     email: claims["email"],
-    first_name: claims["first_name"],
-    last_name: claims["last_name"],
-    profile_image_url: claims["profile_image_url"],
-  });
+    first_name: claims["first_name"] || null,
+    last_name: claims["last_name"] || null,
+    profile_image_url: claims["profile_image_url"] || null,
+    role: "viewer" // Default role
+  };
+  
+  console.log("Attempting to upsert user with data:", JSON.stringify(userData, null, 2));
+  
+  try {
+    const user = await storage.upsertUser(userData);
+    console.log("User upserted successfully:", user.id);
+    return user;
+  } catch (error) {
+    console.error("Failed to upsert user:", error);
+    throw error;
+  }
 }
 
 export async function setupAuth(app: Express) {
@@ -102,6 +117,7 @@ export async function setupAuth(app: Express) {
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
   app.get("/api/login", (req, res, next) => {
+    console.log("Login request received, hostname:", req.hostname);
     passport.authenticate(`replitauth:${req.hostname}`, {
       prompt: "login consent",
       scope: ["openid", "email", "profile", "offline_access"],
@@ -114,7 +130,7 @@ export async function setupAuth(app: Express) {
       successReturnToOrRedirect: "/",
       failureRedirect: "/api/login",
       failWithError: true
-    })(req, res, (err) => {
+    })(req, res, (err: Error | null) => {
       if (err) {
         console.error("Authentication error:", err);
         return res.redirect("/api/login");
