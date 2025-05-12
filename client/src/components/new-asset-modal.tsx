@@ -61,8 +61,7 @@ export function NewAssetModal({
   const extendedSchema = insertAssetSchema.extend({
     uniqueIdentifier: z.string().min(1, "Asset ID is required"),
     name: z.string().min(1, "Asset name is required"),
-    // Allow string input from the form that will be converted to Date
-    dateAcquired: z.string().transform((str) => str ? new Date(str) : undefined).optional(),
+    // The dateAcquired field will be handled by the server schema's union type
   });
 
   type FormData = z.infer<typeof extendedSchema>;

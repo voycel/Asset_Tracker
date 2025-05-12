@@ -193,7 +193,15 @@ const baseAssetSchema = createInsertSchema(assets).omit({ id: true, createdAt: t
 
 // Customize with better date handling
 export const insertAssetSchema = baseAssetSchema.extend({
-  dateAcquired: z.date().optional().nullable(),
+  // Accept both Date objects and strings that can be parsed into dates
+  dateAcquired: z.union([
+    z.string()
+      .refine(str => !isNaN(new Date(str).getTime()), {
+        message: "Invalid date string format"
+      })
+      .transform(str => new Date(str)),
+    z.date()
+  ]).optional().nullable(),
 });
 export const insertAssetCustomFieldValueSchema = createInsertSchema(assetCustomFieldValues).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertAssetLogSchema = createInsertSchema(assetLogs).omit({ id: true });
