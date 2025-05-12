@@ -22,8 +22,9 @@ import { Loader } from "lucide-react";
 
 // Protected route wrapper
 function ProtectedRoute({ component: Component, ...rest }: { component: React.ComponentType<any>; [key: string]: any }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
+  const isAuthenticated = !!user;
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {

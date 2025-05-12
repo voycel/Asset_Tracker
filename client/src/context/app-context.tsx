@@ -29,7 +29,7 @@ interface AppProviderProps {
 }
 
 export const AppProvider = ({ children }: AppProviderProps) => {
-  const { user } = useAuth();
+  // We'll fetch user data directly instead of using useAuth here to avoid circular dependencies
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
@@ -38,11 +38,28 @@ export const AppProvider = ({ children }: AppProviderProps) => {
   const [statuses, setStatuses] = useState<Status[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [user, setUser] = useState<User | null>(null);
 
   const fetchData = async () => {
     try {
-      // Fetch user - We're now using the react-query hook for authentication
-      // No need to fetch user data here anymore
+      // Fetch user
+      try {
+        const userResponse = await fetch("/api/auth/user");
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          // Map user data to match our expected schema
+          const mappedUser = {
+            ...userData,
+            firstName: userData.first_name,
+            lastName: userData.last_name,
+            profileImageUrl: userData.profile_image_url
+          };
+          setUser(mappedUser);
+        }
+      } catch (authError) {
+        console.error("Auth error:", authError);
+        setUser(null);
+      }
       
       // Fetch workspaces
       const workspacesResponse = await apiRequest("GET", "/api/workspaces");
