@@ -61,7 +61,8 @@ export function NewAssetModal({
   const extendedSchema = insertAssetSchema.extend({
     uniqueIdentifier: z.string().min(1, "Asset ID is required"),
     name: z.string().min(1, "Asset name is required"),
-    dateAcquired: z.string().or(z.date()).optional(),
+    // Allow string input from the form that will be converted to Date
+    dateAcquired: z.string().transform((str) => str ? new Date(str) : undefined).optional(),
   });
 
   type FormData = z.infer<typeof extendedSchema>;
@@ -79,7 +80,8 @@ export function NewAssetModal({
       workspaceId: user?.workspaceId || undefined,
       uniqueIdentifier: generateRandomId("AST"),
       name: "",
-      dateAcquired: new Date().toISOString().split("T")[0], // Format as YYYY-MM-DD
+      // Format as YYYY-MM-DD for the input field
+      dateAcquired: new Date().toISOString().split("T")[0],
       cost: "",
       notes: "",
       isArchived: false,
@@ -140,14 +142,16 @@ export function NewAssetModal({
     try {
       setLoading(true);
       
-      // Create the asset
-      const response = await apiRequest("POST", "/api/assets", {
+      // Create the asset with properly formatted data
+      // Zod transform has already converted the string date to a Date object
+      const formattedData = {
         ...data,
-        // Ensure date is formatted correctly
-        dateAcquired: data.dateAcquired ? new Date(data.dateAcquired) : null,
+        // The dateAcquired is already a Date object thanks to the zod transform
         cost: data.cost ? data.cost.toString() : "",
         userId: user?.id,
-      });
+      };
+      
+      const response = await apiRequest("POST", "/api/assets", formattedData);
       
       if (!response.ok) {
         throw new Error("Failed to create asset");

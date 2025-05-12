@@ -188,7 +188,13 @@ export const insertStatusSchema = createInsertSchema(statuses).omit({ id: true, 
 export const insertLocationSchema = createInsertSchema(locations).omit({ id: true, createdAt: true });
 export const insertAssignmentSchema = createInsertSchema(assignments).omit({ id: true, createdAt: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });
-export const insertAssetSchema = createInsertSchema(assets).omit({ id: true, createdAt: true, updatedAt: true });
+// Base schema for assets
+const baseAssetSchema = createInsertSchema(assets).omit({ id: true, createdAt: true, updatedAt: true });
+
+// Customize with better date handling
+export const insertAssetSchema = baseAssetSchema.extend({
+  dateAcquired: z.date().optional().nullable(),
+});
 export const insertAssetCustomFieldValueSchema = createInsertSchema(assetCustomFieldValues).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertAssetLogSchema = createInsertSchema(assetLogs).omit({ id: true });
 
