@@ -79,7 +79,7 @@ export function NewAssetModal({
       workspaceId: user?.workspaceId || undefined,
       uniqueIdentifier: generateRandomId("AST"),
       name: "",
-      dateAcquired: new Date().toISOString().split("T")[0],
+      dateAcquired: new Date().toISOString().split("T")[0], // Format as YYYY-MM-DD
       cost: "",
       notes: "",
       isArchived: false,
@@ -143,6 +143,8 @@ export function NewAssetModal({
       // Create the asset
       const response = await apiRequest("POST", "/api/assets", {
         ...data,
+        // Ensure date is formatted correctly
+        dateAcquired: data.dateAcquired ? new Date(data.dateAcquired) : null,
         cost: data.cost ? data.cost.toString() : "",
         userId: user?.id,
       });
@@ -231,9 +233,13 @@ export function NewAssetModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0 gap-0">
+      <DialogContent 
+        className="max-w-3xl max-h-[90vh] flex flex-col p-0 gap-0"
+        aria-describedby="asset-dialog-description"
+      >
         <DialogHeader className="px-6 py-4 border-b border-neutral-200 flex-shrink-0">
           <DialogTitle className="text-lg font-semibold text-neutral-900">Add New Asset</DialogTitle>
+          <p id="asset-dialog-description" className="sr-only">Form to add a new asset to the system</p>
         </DialogHeader>
         
         <form onSubmit={handleSubmit(processFormSubmit)} className="flex-1 overflow-y-auto">
@@ -340,9 +346,14 @@ export function NewAssetModal({
                   <Input 
                     id="purchaseDate" 
                     type="date" 
-                    {...register("dateAcquired")}
+                    {...register("dateAcquired", {
+                      setValueAs: (value) => value ? value : undefined
+                    })}
                     disabled={loading}
                   />
+                  {errors.dateAcquired && (
+                    <p className="text-sm text-red-500 mt-1">{errors.dateAcquired.message}</p>
+                  )}
                 </div>
                 
                 <div>
