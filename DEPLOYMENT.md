@@ -1,14 +1,33 @@
 # Deployment Guide for Asset Tracker
 
-This guide will help you deploy the Asset Tracker application to Vercel with a Neon PostgreSQL database and Stripe integration.
+This guide will help you deploy the Asset Tracker application to Vercel with a Supabase or Neon PostgreSQL database and Stripe integration.
 
 ## Prerequisites
 
 1. A [Vercel](https://vercel.com/) account
-2. A [Neon](https://neon.tech/) account for PostgreSQL database
+2. A database provider account:
+   - [Supabase](https://supabase.com/) (recommended) OR
+   - [Neon](https://neon.tech/)
 3. A [Stripe](https://stripe.com/) account for payment processing (optional)
 
-## Step 1: Set Up Your Neon Database
+## Step 1: Set Up Your Database
+
+### Option A: Set Up Supabase (Recommended)
+
+1. Sign up or log in to [Supabase](https://supabase.com/)
+2. Create a new project
+3. Set a secure database password
+4. Choose a region closest to you
+5. Once your project is created, go to "Settings" > "Database"
+6. Scroll down to "Connection string" and select "URI"
+7. Copy the connection string (it will look like `postgresql://postgres:[YOUR-PASSWORD]@db.abcdefghijklm.supabase.co:5432/postgres`)
+8. Replace `[YOUR-PASSWORD]` with the database password you set when creating the project
+
+If you want to use Supabase Auth (optional):
+1. Go to "Settings" > "API"
+2. Copy the "Project URL" and "anon public" key
+
+### Option B: Set Up Neon Database
 
 1. Sign up or log in to [Neon](https://neon.tech/)
 2. Create a new project
@@ -43,12 +62,18 @@ If you want to use Stripe for payment processing:
    - Install Command: `npm install`
 
 6. Add Environment Variables:
-   - `DATABASE_URL`: Your Neon PostgreSQL connection string
+   - `DATABASE_URL`: Your Supabase or Neon PostgreSQL connection string
    - `SESSION_SECRET`: A random string for session encryption
-   - `VITE_STRIPE_PUBLIC_KEY`: Your Stripe publishable key (if using Stripe)
-   - `STRIPE_SECRET_KEY`: Your Stripe secret key (if using Stripe)
-   - `STRIPE_WEBHOOK_SECRET`: Your Stripe webhook signing secret (if using webhooks)
    - `APP_URL`: Your Vercel app URL (e.g., `https://your-app.vercel.app`)
+
+   If using Supabase Auth (optional):
+   - `SUPABASE_URL`: Your Supabase project URL
+   - `SUPABASE_ANON_KEY`: Your Supabase anon key
+
+   If using Stripe (optional):
+   - `VITE_STRIPE_PUBLIC_KEY`: Your Stripe publishable key
+   - `STRIPE_SECRET_KEY`: Your Stripe secret key
+   - `STRIPE_WEBHOOK_SECRET`: Your Stripe webhook signing secret (if using webhooks)
 
 7. Click "Deploy"
 

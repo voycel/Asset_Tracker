@@ -1,10 +1,13 @@
+import React, { useState, useEffect } from "react";
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/ui/theme-provider";
-import { AppProvider } from "@/context/app-context";
+import { AppProvider, useAppContext } from "@/context/app-context"; // Import useAppContext
+import { NewAssetModal } from "@/components/new-asset-modal"; // Import modal
+import { Asset } from "@shared/schema"; // Import Asset type
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import Assets from "@/pages/assets";
@@ -17,11 +20,14 @@ import Login from "@/pages/login";
 import Landing from "@/pages/landing";
 import { useMediaQuery } from "@/hooks/use-mobile";
 import { Sidebar } from "@/components/sidebar";
-import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader } from "lucide-react";
+import { installGlobalErrorHandler } from "@/lib/errorHandler"; // Import error handler
 
-// Protected route wrapper
+// Install global error handler for Replit auth errors
+installGlobalErrorHandler();
+
+// Protected route wrapper (remains the same)
 function ProtectedRoute({ component: Component, ...rest }: { component: React.ComponentType<any>; [key: string]: any }) {
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
@@ -46,6 +52,7 @@ function ProtectedRoute({ component: Component, ...rest }: { component: React.Co
   return isAuthenticated ? <Component {...rest} /> : null;
 }
 
+// Router component (remains the same)
 function Router() {
   const [location] = useLocation();
   const isAuthPage = location === "/login" || location === "/landing";
@@ -80,6 +87,47 @@ function Router() {
   );
 }
 
+// Component to render global modals using context
+function GlobalModals() {
+  const {
+    isNewAssetModalOpen,
+    closeNewAssetModal,
+    assetTypes,
+    manufacturers,
+    statuses,
+    locations,
+    assignments,
+    currentWorkspace,
+  } = useAppContext();
+
+  const handleAssetSubmit = (asset: Asset) => {
+    console.log("New asset created:", asset);
+    closeNewAssetModal();
+    // Invalidate relevant queries after a new asset is created
+    queryClient.invalidateQueries({ queryKey: ['/api/assets'] });
+    if (currentWorkspace?.id) {
+      queryClient.invalidateQueries({ queryKey: ['/api/stats', currentWorkspace.id] });
+    }
+  };
+
+  return (
+    <>
+      <NewAssetModal
+        isOpen={isNewAssetModalOpen}
+        onClose={closeNewAssetModal}
+        onSubmit={handleAssetSubmit}
+        assetTypes={assetTypes}
+        manufacturers={manufacturers}
+        statuses={statuses}
+        locations={locations}
+        assignments={assignments}
+      />
+      {/* Add other global modals here if needed */}
+    </>
+  );
+}
+
+
 function App() {
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
@@ -98,10 +146,10 @@ function App() {
   }, []); // Empty dependency array to run only once
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="light" storageKey="asset-tracker-theme">
-        <TooltipProvider>
-          <AppProvider>
+    <AppProvider>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider defaultTheme="light" storageKey="asset-tracker-theme">
+          <TooltipProvider>
             {isAuthPage ? (
               <Router />
             ) : (
@@ -113,10 +161,11 @@ function App() {
               </div>
             )}
             <Toaster />
-          </AppProvider>
-        </TooltipProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+            <GlobalModals /> {/* Render modals here */}
+          </TooltipProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </AppProvider>
   );
 }
 

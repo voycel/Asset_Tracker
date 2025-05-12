@@ -14,7 +14,7 @@ interface KanbanBoardProps {
 }
 
 export function KanbanBoard({ assets, groupBy, onAssetUpdated }: KanbanBoardProps) {
-  const { statuses, locations, assignments, refreshData } = useAppContext();
+  const { statuses, locations, assignments, refreshData, user } = useAppContext();
   const [columns, setColumns] = useState<{ [key: string]: Asset[] }>({});
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -23,12 +23,12 @@ export function KanbanBoard({ assets, groupBy, onAssetUpdated }: KanbanBoardProp
   // Group assets based on the selected groupBy parameter
   useEffect(() => {
     const grouped: { [key: string]: Asset[] } = {};
-    
+
     if (groupBy === "status") {
       statuses.forEach(status => {
         grouped[status.id.toString()] = [];
       });
-      
+
       assets.forEach(asset => {
         const statusId = asset.currentStatusId?.toString();
         if (statusId && grouped[statusId]) {
@@ -48,7 +48,7 @@ export function KanbanBoard({ assets, groupBy, onAssetUpdated }: KanbanBoardProp
       locations.forEach(location => {
         grouped[location.id.toString()] = [];
       });
-      
+
       assets.forEach(asset => {
         const locationId = asset.currentLocationId?.toString();
         if (locationId && grouped[locationId]) {
@@ -68,7 +68,7 @@ export function KanbanBoard({ assets, groupBy, onAssetUpdated }: KanbanBoardProp
       assignments.forEach(assignment => {
         grouped[assignment.id.toString()] = [];
       });
-      
+
       assets.forEach(asset => {
         const assignmentId = asset.currentAssignmentId?.toString();
         if (assignmentId && grouped[assignmentId]) {
@@ -85,7 +85,7 @@ export function KanbanBoard({ assets, groupBy, onAssetUpdated }: KanbanBoardProp
         }
       });
     }
-    
+
     setColumns(grouped);
   }, [assets, groupBy, statuses, locations, assignments]);
 
@@ -127,47 +127,60 @@ export function KanbanBoard({ assets, groupBy, onAssetUpdated }: KanbanBoardProp
       return;
     }
 
+    // Create optimistic update for UI responsiveness
+    const sourceItems = Array.from(sourceColumn);
+    const [movedItem] = sourceItems.splice(source.index, 1);
+    const destItems = Array.from(destinationColumn);
+    destItems.splice(destination.index, 0, movedItem);
+
+    // Apply optimistic update to state
+    const optimisticColumns = {
+      ...columns,
+      [source.droppableId]: sourceItems,
+      [destination.droppableId]: destItems
+    };
+    setColumns(optimisticColumns);
+
     // Move between columns - update the database
     try {
       let updateEndpoint = "";
       let updateData = {};
+      const userId = user?.id || 1; // Fallback to 1 if no user ID is available
 
       if (groupBy === "status") {
         updateEndpoint = `/api/assets/${assetId}/status`;
-        updateData = { 
+        updateData = {
           statusId: destination.droppableId === "unassigned" ? null : parseInt(destination.droppableId),
-          userId: 1 // TODO: Replace with actual user ID when auth is implemented
+          userId
         };
       } else if (groupBy === "location") {
         updateEndpoint = `/api/assets/${assetId}/location`;
-        updateData = { 
+        updateData = {
           locationId: destination.droppableId === "unassigned" ? null : parseInt(destination.droppableId),
-          userId: 1 // TODO: Replace with actual user ID when auth is implemented
+          userId
         };
       } else { // assignment
         updateEndpoint = `/api/assets/${assetId}/assignment`;
-        updateData = { 
+        updateData = {
           assignmentId: destination.droppableId === "unassigned" ? null : parseInt(destination.droppableId),
-          userId: 1 // TODO: Replace with actual user ID when auth is implemented
+          userId
         };
       }
 
-      await apiRequest("PATCH", updateEndpoint, updateData);
-      
-      // Update columns in state
-      const sourceItems = Array.from(sourceColumn);
-      const [movedItem] = sourceItems.splice(source.index, 1);
-      const destItems = Array.from(destinationColumn);
-      destItems.splice(destination.index, 0, movedItem);
+      // Make the API request
+      const response = await fetch(updateEndpoint, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData),
+        credentials: 'include'
+      });
 
-      const newColumns = {
-        ...columns,
-        [source.droppableId]: sourceItems,
-        [destination.droppableId]: destItems
-      };
+      if (!response.ok) {
+        // If the request failed, throw an error with details
+        const errorText = await response.text();
+        throw new Error(`${response.status}: ${errorText}`);
+      }
 
-      setColumns(newColumns);
-      
       // Notify parent of the update
       onAssetUpdated();
 
@@ -177,9 +190,16 @@ export function KanbanBoard({ assets, groupBy, onAssetUpdated }: KanbanBoardProp
       });
     } catch (error) {
       console.error("Error updating asset:", error);
+
+      // Revert the optimistic update on error
+      setColumns({...columns});
+
+      // Show detailed error message
       toast({
         title: "Update failed",
-        description: "There was a problem updating the asset. Please try again.",
+        description: error instanceof Error
+          ? `Error: ${error.message}`
+          : "There was a problem updating the asset. Please try again.",
         variant: "destructive",
       });
     }
@@ -192,7 +212,7 @@ export function KanbanBoard({ assets, groupBy, onAssetUpdated }: KanbanBoardProp
 
   const getColumnTitle = (columnId: string) => {
     if (columnId === "unassigned") return "Unassigned";
-    
+
     if (groupBy === "status") {
       const status = statuses.find(s => s.id.toString() === columnId);
       return status?.name || "Unknown";
@@ -207,12 +227,12 @@ export function KanbanBoard({ assets, groupBy, onAssetUpdated }: KanbanBoardProp
 
   const getColumnColor = (columnId: string) => {
     if (columnId === "unassigned") return "bg-neutral-500";
-    
+
     if (groupBy === "status") {
       const status = statuses.find(s => s.id.toString() === columnId);
       return status?.color ? status.color : "bg-neutral-500";
     }
-    
+
     return "bg-neutral-500";
   };
 
@@ -226,11 +246,14 @@ export function KanbanBoard({ assets, groupBy, onAssetUpdated }: KanbanBoardProp
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {Object.entries(columns).map(([columnId, columnAssets]) => (
-            <div key={columnId} className="bg-white rounded-lg shadow">
+            <div key={columnId} className="bg-white rounded-lg shadow flex flex-col">
               <div className="px-4 py-3 border-b border-neutral-200 bg-neutral-50 rounded-t-lg">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
-                    <span className="status-label" style={{ backgroundColor: getColumnColor(columnId) }}></span>
+                    <span
+                      className="inline-block w-3 h-3 rounded-full mr-2"
+                      style={{ backgroundColor: getColumnColor(columnId) }}
+                    ></span>
                     <h3 className="text-sm font-medium text-neutral-800">
                       {getColumnTitle(columnId)}
                     </h3>
@@ -241,11 +264,12 @@ export function KanbanBoard({ assets, groupBy, onAssetUpdated }: KanbanBoardProp
                 </div>
               </div>
               <Droppable droppableId={columnId}>
-                {(provided) => (
+                {(provided, snapshot) => (
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className="p-3 kanban-column"
+                    className={`p-3 flex-1 overflow-y-auto max-h-[calc(100vh-220px)] ${snapshot.isDraggingOver ? 'bg-blue-50' : ''}`}
+                    style={{ minHeight: '100px' }}
                   >
                     {columnAssets.map((asset, index) => (
                       <Draggable
@@ -253,12 +277,13 @@ export function KanbanBoard({ assets, groupBy, onAssetUpdated }: KanbanBoardProp
                         draggableId={asset.id.toString()}
                         index={index}
                       >
-                        {(provided) => (
+                        {(provided, snapshot) => (
                           <div
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
                             onClick={() => handleAssetClick(asset)}
+                            className={`mb-3 transition-transform duration-200 ${snapshot.isDragging ? 'shadow-lg scale-105 z-10' : ''}`}
                           >
                             <AssetCard asset={asset} />
                           </div>

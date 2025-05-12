@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { Parser, Transform } from 'json2csv';
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated } from "./localAuth";
 import {
   insertWorkspaceSchema, insertAssetTypeSchema, insertCustomFieldDefinitionSchema,
   insertManufacturerSchema, insertStatusSchema, insertLocationSchema,
@@ -623,9 +623,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/assets/:id/status', async (req, res) => {
     try {
       const { statusId, userId } = req.body;
+      const assetId = Number(req.params.id);
+
+      // Validate inputs
+      if (isNaN(assetId)) {
+        return res.status(400).json({ message: 'Invalid asset ID' });
+      }
+
+      // If statusId is not null, validate it exists
+      if (statusId !== null) {
+        const statusExists = await storage.getStatus(statusId);
+        if (!statusExists) {
+          return res.status(400).json({ message: 'Invalid status ID' });
+        }
+      }
 
       // Update the asset status
-      const asset = await storage.updateAsset(Number(req.params.id), { currentStatusId: statusId });
+      const asset = await storage.updateAsset(assetId, { currentStatusId: statusId });
       if (!asset) {
         return res.status(404).json({ message: 'Asset not found' });
       }
@@ -633,26 +647,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create log entry for status change
       await storage.createAssetLog({
         assetId: asset.id,
-        userId,
+        userId: userId || 1, // Fallback to system user if not provided
         actionType: 'UPDATE_STATUS',
         detailsJson: {
           message: 'Status updated',
-          statusId
+          statusId,
+          previousStatusId: asset.currentStatusId
         }
       });
 
       res.json(asset);
     } catch (error) {
-      res.status(500).json({ message: 'Error updating asset status' });
+      console.error('Error updating asset status:', error);
+      res.status(500).json({
+        message: 'Error updating asset status',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 
   app.patch('/api/assets/:id/location', async (req, res) => {
     try {
       const { locationId, userId } = req.body;
+      const assetId = Number(req.params.id);
+
+      // Validate inputs
+      if (isNaN(assetId)) {
+        return res.status(400).json({ message: 'Invalid asset ID' });
+      }
+
+      // If locationId is not null, validate it exists
+      if (locationId !== null) {
+        const locationExists = await storage.getLocation(locationId);
+        if (!locationExists) {
+          return res.status(400).json({ message: 'Invalid location ID' });
+        }
+      }
 
       // Update the asset location
-      const asset = await storage.updateAsset(Number(req.params.id), { currentLocationId: locationId });
+      const asset = await storage.updateAsset(assetId, { currentLocationId: locationId });
       if (!asset) {
         return res.status(404).json({ message: 'Asset not found' });
       }
@@ -660,26 +693,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create log entry for location change
       await storage.createAssetLog({
         assetId: asset.id,
-        userId,
+        userId: userId || 1, // Fallback to system user if not provided
         actionType: 'UPDATE_LOCATION',
         detailsJson: {
           message: 'Location updated',
-          locationId
+          locationId,
+          previousLocationId: asset.currentLocationId
         }
       });
 
       res.json(asset);
     } catch (error) {
-      res.status(500).json({ message: 'Error updating asset location' });
+      console.error('Error updating asset location:', error);
+      res.status(500).json({
+        message: 'Error updating asset location',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 
   app.patch('/api/assets/:id/assignment', async (req, res) => {
     try {
       const { assignmentId, userId } = req.body;
+      const assetId = Number(req.params.id);
+
+      // Validate inputs
+      if (isNaN(assetId)) {
+        return res.status(400).json({ message: 'Invalid asset ID' });
+      }
+
+      // If assignmentId is not null, validate it exists
+      if (assignmentId !== null) {
+        const assignmentExists = await storage.getAssignment(assignmentId);
+        if (!assignmentExists) {
+          return res.status(400).json({ message: 'Invalid assignment ID' });
+        }
+      }
 
       // Update the asset assignment
-      const asset = await storage.updateAsset(Number(req.params.id), { currentAssignmentId: assignmentId });
+      const asset = await storage.updateAsset(assetId, { currentAssignmentId: assignmentId });
       if (!asset) {
         return res.status(404).json({ message: 'Asset not found' });
       }
@@ -687,17 +739,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create log entry for assignment change
       await storage.createAssetLog({
         assetId: asset.id,
-        userId,
+        userId: userId || 1, // Fallback to system user if not provided
         actionType: 'ASSIGNED',
         detailsJson: {
           message: 'Assignment updated',
-          assignmentId
+          assignmentId,
+          previousAssignmentId: asset.currentAssignmentId
         }
       });
 
       res.json(asset);
     } catch (error) {
-      res.status(500).json({ message: 'Error updating asset assignment' });
+      console.error('Error updating asset assignment:', error);
+      res.status(500).json({
+        message: 'Error updating asset assignment',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 

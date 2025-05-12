@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
-import { useAuth } from "@/hooks/useAuth";
-import { 
-  Workspace, AssetType, CustomFieldDefinition, Manufacturer, 
-  Status, Location, Assignment, User
+// Removed useAuth import as user is fetched directly
+// Removed NewAssetModal import as it's no longer rendered here
+import {
+  Workspace, AssetType, CustomFieldDefinition, Manufacturer,
+  Status, Location, Assignment, User, Asset
 } from "@shared/schema";
 
 interface AppContextType {
@@ -20,9 +21,16 @@ interface AppContextType {
   user: User | null;
   refreshData: () => void;
   getCustomFieldsForAssetType: (assetTypeId: number) => Promise<CustomFieldDefinition[]>;
+  openNewAssetModal: () => void;
+  closeNewAssetModal: () => void; // Expose close function
+  isNewAssetModalOpen: boolean; // Expose modal state
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
+
+// Define the type for the asset submission handler
+// This might be needed by the component rendering the modal
+export type AssetSubmitHandler = (asset: Asset) => void;
 
 interface AppProviderProps {
   children: ReactNode;
@@ -39,8 +47,11 @@ export const AppProvider = ({ children }: AppProviderProps) => {
   const [locations, setLocations] = useState<Location[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [user, setUser] = useState<User | null>(null);
+  const [isNewAssetModalOpen, setIsNewAssetModalOpen] = useState(false);
 
   const fetchData = async () => {
+    // Ensure user state is cleared if auth fails
+    setUser(null);
     try {
       // Fetch user
       try {
@@ -133,13 +144,22 @@ export const AppProvider = ({ children }: AppProviderProps) => {
   }, []);
 
   const refreshData = () => {
-    queryClient.invalidateQueries({ queryKey: ["/api/assets"] });
-    fetchData();
+    // Invalidate assets list and potentially stats
+    queryClient.invalidateQueries({ queryKey: ['/api/assets'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/stats', currentWorkspace?.id] });
+    // Consider if refetching *all* context data is necessary or if specific invalidations are better
+    fetchData(); 
   };
+
+  const openNewAssetModal = () => setIsNewAssetModalOpen(true);
+  const closeNewAssetModal = () => setIsNewAssetModalOpen(false);
+
+  // Removed handleAssetCreated as submission logic moves to the renderer
 
   return (
     <AppContext.Provider
       value={{
+        // Provide state and functions needed by the modal renderer
         currentWorkspace,
         setCurrentWorkspace,
         workspaces,
@@ -151,10 +171,14 @@ export const AppProvider = ({ children }: AppProviderProps) => {
         assignments,
         user,
         refreshData,
-        getCustomFieldsForAssetType
+        getCustomFieldsForAssetType,
+        openNewAssetModal,
+        closeNewAssetModal, // Expose close function
+        isNewAssetModalOpen // Expose state
       }}
     >
       {children}
+      {/* Modal is no longer rendered here */}
     </AppContext.Provider>
   );
 };
