@@ -115,12 +115,25 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
         </div>
       </aside>
 
-      {/* Mobile menu button */}
+      {/* Mobile menu button - always visible when sidebar is closed */}
+      {!isOpen && (
+        <button
+          className="fixed top-4 left-4 md:hidden z-50 bg-transparent text-neutral-700 p-2 rounded"
+          onClick={onToggle}
+        >
+          <MenuIcon className="h-6 w-6" />
+        </button>
+      )}
+      
+      {/* Floating action button for adding new asset */}
       <button
         className="fixed bottom-4 right-4 md:hidden z-50 bg-primary-500 text-white p-3 rounded-full shadow-lg"
-        onClick={onToggle}
+        onClick={() => {
+          // Use the Link's click method to navigate to the dashboard
+          document.querySelector<HTMLAnchorElement>('a[href="/"]')?.click();
+        }}
       >
-        <MenuIcon className="h-6 w-6" />
+        <HomeIcon className="h-6 w-6" />
       </button>
     </>
   );
