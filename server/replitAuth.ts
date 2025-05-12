@@ -109,10 +109,18 @@ export async function setupAuth(app: Express) {
   });
 
   app.get("/api/callback", (req, res, next) => {
+    console.log("Callback received with query parameters:", req.query);
     passport.authenticate(`replitauth:${req.hostname}`, {
       successReturnToOrRedirect: "/",
       failureRedirect: "/api/login",
-    })(req, res, next);
+      failWithError: true
+    })(req, res, (err) => {
+      if (err) {
+        console.error("Authentication error:", err);
+        return res.redirect("/api/login");
+      }
+      next();
+    });
   });
 
   app.get("/api/logout", (req, res) => {
