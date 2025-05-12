@@ -4,19 +4,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from "@/components/ui/select";
-import { 
-  AssetType, 
-  Manufacturer, 
-  Status, 
-  Location, 
-  Assignment, 
+import {
+  AssetType,
+  Manufacturer,
+  Status,
+  Location,
+  Assignment,
   CustomFieldDefinition,
   insertAssetSchema,
   Asset
@@ -124,24 +124,31 @@ export function NewAssetModal({
 
   const handleCustomFieldChange = (fieldId: number, value: any, fieldType: string) => {
     let processedValue = value;
-    
+
     // Process value based on field type
     if (fieldType === 'Number' && value !== '') {
       processedValue = parseFloat(value);
     } else if (fieldType === 'Boolean') {
       processedValue = value === 'true';
     }
-    
-    setCustomFieldValues(prev => ({
-      ...prev,
-      [fieldId]: processedValue
-    }));
+
+    // Log the change
+    console.log(`Custom field ${fieldId} changed to:`, processedValue);
+
+    setCustomFieldValues(prev => {
+      const updated = {
+        ...prev,
+        [fieldId]: processedValue
+      };
+      console.log("Updated custom field values:", updated);
+      return updated;
+    });
   };
 
   const processFormSubmit = async (data: FormData) => {
     try {
       setLoading(true);
-      
+
       // Create the asset with properly formatted data
       // The dateAcquired is already a Date object or undefined due to schema transform
       // No need to create a new Date object here
@@ -154,71 +161,89 @@ export function NewAssetModal({
 
       // apiRequest now has a custom JSON serializer that properly handles Date objects
       const response = await apiRequest("POST", "/api/assets", formattedData);
-      
+
       if (!response.ok) {
         throw new Error("Failed to create asset");
       }
-      
+
       const createdAsset = await response.json();
-      
+
       // Create custom field values if any
+      console.log("Custom field values to save:", customFieldValues);
+
       const customFieldPromises = Object.entries(customFieldValues).map(([fieldId, value]) => {
         const fieldDef = customFields.find(f => f.id === parseInt(fieldId));
-        if (!fieldDef) return null;
-        
+        if (!fieldDef) {
+          console.warn(`No field definition found for field ID ${fieldId}`);
+          return null;
+        }
+
         let fieldValue: any = {};
-        
+
         switch (fieldDef.fieldType) {
           case 'Text':
-            fieldValue = { 
-              assetId: createdAsset.id, 
-              fieldDefinitionId: parseInt(fieldId), 
-              textValue: value 
+            fieldValue = {
+              assetId: createdAsset.id,
+              fieldDefinitionId: parseInt(fieldId),
+              textValue: value
             };
             break;
           case 'Number':
-            fieldValue = { 
-              assetId: createdAsset.id, 
-              fieldDefinitionId: parseInt(fieldId), 
-              numberValue: value?.toString() 
+            fieldValue = {
+              assetId: createdAsset.id,
+              fieldDefinitionId: parseInt(fieldId),
+              numberValue: value?.toString()
             };
             break;
           case 'Date':
-            fieldValue = { 
-              assetId: createdAsset.id, 
-              fieldDefinitionId: parseInt(fieldId), 
-              dateValue: value 
+            fieldValue = {
+              assetId: createdAsset.id,
+              fieldDefinitionId: parseInt(fieldId),
+              dateValue: value
             };
             break;
           case 'Boolean':
-            fieldValue = { 
-              assetId: createdAsset.id, 
-              fieldDefinitionId: parseInt(fieldId), 
-              booleanValue: value === true || value === 'true' 
+            fieldValue = {
+              assetId: createdAsset.id,
+              fieldDefinitionId: parseInt(fieldId),
+              booleanValue: value === true || value === 'true'
             };
             break;
           default:
-            fieldValue = { 
-              assetId: createdAsset.id, 
-              fieldDefinitionId: parseInt(fieldId), 
-              textValue: value 
+            fieldValue = {
+              assetId: createdAsset.id,
+              fieldDefinitionId: parseInt(fieldId),
+              textValue: value
             };
         }
-        
-        return apiRequest("POST", "/api/assets/custom-fields", fieldValue);
+
+        console.log(`Saving custom field value for field ${fieldId} (${fieldDef.fieldName}):`, fieldValue);
+        return apiRequest("POST", "/api/asset-custom-field-values", fieldValue)
+          .then(response => {
+            if (!response.ok) {
+              console.error(`Failed to save custom field value for field ${fieldId}:`, response.status);
+              return null;
+            }
+            console.log(`Successfully saved custom field value for field ${fieldId}`);
+            return response;
+          })
+          .catch(error => {
+            console.error(`Error saving custom field value for field ${fieldId}:`, error);
+            return null;
+          });
       });
-      
+
       await Promise.all(customFieldPromises.filter(Boolean));
-      
+
       toast({
         title: "Asset created",
         description: `Asset "${data.name}" has been created successfully.`,
       });
-      
+
       // Reset form
       reset();
       setCustomFieldValues({});
-      
+
       // Call onSubmit callback
       onSubmit(createdAsset);
     } catch (error) {
@@ -239,7 +264,7 @@ export function NewAssetModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent 
+      <DialogContent
         className="max-w-3xl max-h-[90vh] flex flex-col p-0 gap-0"
         aria-describedby="asset-dialog-description"
       >
@@ -247,7 +272,7 @@ export function NewAssetModal({
           <DialogTitle className="text-lg font-semibold text-neutral-900">Add New Asset</DialogTitle>
           <p id="asset-dialog-description" className="sr-only">Form to add a new asset to the system</p>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit(processFormSubmit)} className="flex-1 overflow-y-auto">
           <div className="p-6">
             {/* Asset Type Selection */}
@@ -277,18 +302,18 @@ export function NewAssetModal({
                 This determines which custom fields will be available
               </p>
             </div>
-            
+
             {/* Basic Information */}
             <div className="border-b border-neutral-200 pb-6 mb-6">
               <h3 className="text-md font-medium text-neutral-900 mb-4">Basic Information</h3>
-              
+
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <Label htmlFor="assetName" className="block text-sm font-medium text-neutral-700 mb-1">
                     Asset Name
                   </Label>
-                  <Input 
-                    id="assetName" 
+                  <Input
+                    id="assetName"
                     placeholder="MacBook Pro 16-inch"
                     {...register("name")}
                     disabled={loading}
@@ -297,7 +322,7 @@ export function NewAssetModal({
                     <p className="text-sm text-red-500 mt-1">{errors.name.message}</p>
                   )}
                 </div>
-                
+
                 <div>
                   <div className="flex justify-between">
                     <Label htmlFor="assetId" className="block text-sm font-medium text-neutral-700 mb-1">
@@ -323,7 +348,7 @@ export function NewAssetModal({
                   )}
                   <p className="mt-1 text-xs text-neutral-500">Unique identifier for this asset</p>
                 </div>
-                
+
                 <div>
                   <Label htmlFor="manufacturer" className="block text-sm font-medium text-neutral-700 mb-1">
                     Manufacturer
@@ -344,14 +369,14 @@ export function NewAssetModal({
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div>
                   <Label htmlFor="purchaseDate" className="block text-sm font-medium text-neutral-700 mb-1">
                     Purchase Date
                   </Label>
-                  <Input 
-                    id="purchaseDate" 
-                    type="date" 
+                  <Input
+                    id="purchaseDate"
+                    type="date"
                     {...register("dateAcquired", {
                       // Just pass the value as is, we'll handle conversion in processFormSubmit
                       setValueAs: (value) => value || undefined
@@ -362,7 +387,7 @@ export function NewAssetModal({
                     <p className="text-sm text-red-500 mt-1">{errors.dateAcquired.message}</p>
                   )}
                 </div>
-                
+
                 <div>
                   <Label htmlFor="cost" className="block text-sm font-medium text-neutral-700 mb-1">
                     Cost
@@ -371,9 +396,9 @@ export function NewAssetModal({
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                       <span className="text-neutral-500 sm:text-sm">$</span>
                     </div>
-                    <Input 
-                      id="cost" 
-                      className="pl-7" 
+                    <Input
+                      id="cost"
+                      className="pl-7"
                       placeholder="0.00"
                       {...register("cost")}
                       disabled={loading}
@@ -382,25 +407,25 @@ export function NewAssetModal({
                 </div>
               </div>
             </div>
-            
+
             {/* Dynamic Custom Fields */}
             {selectedAssetType && customFields.length > 0 && (
               <div className="border-b border-neutral-200 pb-6 mb-6">
                 <h3 className="text-md font-medium text-neutral-900 mb-4">
                   {selectedAssetType.name} Specific Information
                 </h3>
-                
+
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   {customFields.map((field) => (
                     <div key={field.id}>
-                      <Label 
-                        htmlFor={`field_${field.id}`} 
+                      <Label
+                        htmlFor={`field_${field.id}`}
                         className="block text-sm font-medium text-neutral-700 mb-1"
                       >
                         {field.fieldName}
                         {field.isRequired && <span className="text-red-500 ml-1">*</span>}
                       </Label>
-                      
+
                       {field.fieldType === 'Text' && (
                         <Input
                           id={`field_${field.id}`}
@@ -410,7 +435,7 @@ export function NewAssetModal({
                           required={field.isRequired || undefined} // Handle boolean | null
                         />
                       )}
-                      
+
                       {field.fieldType === 'Number' && (
                         <Input
                           id={`field_${field.id}`}
@@ -421,7 +446,7 @@ export function NewAssetModal({
                           required={field.isRequired || undefined} // Handle boolean | null
                         />
                       )}
-                      
+
                       {field.fieldType === 'Date' && (
                         <Input
                           id={`field_${field.id}`}
@@ -432,7 +457,7 @@ export function NewAssetModal({
                           required={field.isRequired || undefined} // Handle boolean | null
                         />
                       )}
-                      
+
                       {field.fieldType === 'Boolean' && (
                         <Select
                           value={customFieldValues[field.id]?.toString() || "false"}
@@ -448,7 +473,7 @@ export function NewAssetModal({
                           </SelectContent>
                         </Select>
                       )}
-                      
+
                       {field.fieldType === 'Dropdown' && field.dropdownOptions && (
                         <Select
                           value={customFieldValues[field.id] || (field.dropdownOptions && field.dropdownOptions.length > 0 ? field.dropdownOptions[0] : "default")}
@@ -472,11 +497,11 @@ export function NewAssetModal({
                 </div>
               </div>
             )}
-            
+
             {/* Status, Location, Assignment */}
             <div className="mb-6">
               <h3 className="text-md font-medium text-neutral-900 mb-4">Tracking Information</h3>
-              
+
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <Label htmlFor="status" className="block text-sm font-medium text-neutral-700 mb-1">
@@ -498,7 +523,7 @@ export function NewAssetModal({
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div>
                   <Label htmlFor="location" className="block text-sm font-medium text-neutral-700 mb-1">
                     Location
@@ -580,7 +605,7 @@ export function NewAssetModal({
               </div>
             </div>
           </div>
-          
+
           <DialogFooter className="px-6 py-4 border-t border-neutral-200">
             <Button variant="outline" type="button" onClick={onClose} disabled={loading}>
               Cancel
