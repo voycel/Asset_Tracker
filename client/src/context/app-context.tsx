@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
@@ -122,8 +122,14 @@ export const AppProvider = ({ children }: AppProviderProps) => {
     }
   };
 
+  // Use a ref to only run fetch once
+  const initialFetchDoneRef = useRef(false);
+  
   useEffect(() => {
-    fetchData();
+    if (!initialFetchDoneRef.current) {
+      initialFetchDoneRef.current = true;
+      fetchData();
+    }
   }, []);
 
   const refreshData = () => {

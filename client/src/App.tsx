@@ -16,7 +16,7 @@ import Login from "@/pages/login";
 import Landing from "@/pages/landing";
 import { useMediaQuery } from "@/hooks/use-mobile";
 import { Sidebar } from "@/components/sidebar";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader } from "lucide-react";
 
@@ -25,12 +25,14 @@ function ProtectedRoute({ component: Component, ...rest }: { component: React.Co
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
   const isAuthenticated = !!user;
+  const redirectRef = React.useRef(false);
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (!isLoading && !isAuthenticated && !redirectRef.current) {
+      redirectRef.current = true;
       setLocation("/login");
     }
-  }, [isAuthenticated, isLoading, setLocation]);
+  }, [isLoading, isAuthenticated, setLocation]);
 
   if (isLoading) {
     return (
@@ -85,11 +87,11 @@ function App() {
   };
 
   useEffect(() => {
-    // Redirect to landing page on initial load
-    if (location === "/" && !isAuthPage) {
+    // Redirect to landing page on initial load - only run once
+    if (location === "/") {
       setLocation("/landing");
     }
-  }, [location, setLocation, isAuthPage]);
+  }, []); // Empty dependency array to run only once
 
   return (
     <QueryClientProvider client={queryClient}>
