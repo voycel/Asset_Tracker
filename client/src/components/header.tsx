@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { MenuIcon, SearchIcon, PlusIcon, BellIcon, HelpCircleIcon } from "lucide-react";
 import { NewAssetModal } from "./new-asset-modal";
 import { useAppContext } from "@/context/app-context";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 interface HeaderProps {
   title: string;
@@ -20,7 +21,7 @@ export function Header({ title, onMenuClick, onSearch, searchQuery = "" }: Heade
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchValue(value);
-    
+
     if (onSearch) {
       onSearch(value);
     }
@@ -71,6 +72,7 @@ export function Header({ title, onMenuClick, onSearch, searchQuery = "" }: Heade
                   <PlusIcon className="h-4 w-4 mr-1" />
                   New Asset
                 </Button>
+                <ThemeToggle />
                 <button className="text-neutral-500 hover:text-neutral-700">
                   <BellIcon className="h-5 w-5" />
                 </button>

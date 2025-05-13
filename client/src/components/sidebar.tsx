@@ -33,7 +33,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
     { name: "Configuration", href: "/configuration", icon: SettingsIcon },
     { name: "Activity Log", href: "/activity-log", icon: ClockIcon },
     { name: "Export Data", href: "/export", icon: DownloadIcon },
-    { name: "Subscription", href: "/subscription", icon: CreditCardIcon },
+    { name: "Feature Tiers", href: "/subscription", icon: CreditCardIcon },
   ];
 
   return (
@@ -49,20 +49,20 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "bg-white shadow-lg w-64 flex-shrink-0 h-screen overflow-hidden z-50 fixed md:relative transition-transform duration-300 ease-in-out",
+          "bg-sidebar shadow-lg w-64 flex-shrink-0 h-screen overflow-hidden z-50 fixed md:relative transition-transform duration-300 ease-in-out",
           isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
       >
         {/* Brand Logo & Name */}
-        <div className="px-6 py-4 flex items-center border-b border-neutral-200">
-          <div className="bg-primary-500 text-white rounded p-1">
+        <div className="px-6 py-4 flex items-center border-b border-sidebar-border">
+          <div className="bg-sidebar-primary text-sidebar-primary-foreground rounded p-1">
             <BoxesIcon className="h-5 w-5" />
           </div>
-          <h1 className="ml-2 text-xl font-semibold text-neutral-800">
-            AssetTrack Pro
+          <h1 className="ml-2 text-xl font-semibold text-sidebar-foreground">
+            Alex Asset Tracker
           </h1>
           <button
-            className="ml-auto md:hidden text-neutral-500 hover:text-neutral-700"
+            className="ml-auto md:hidden text-sidebar-accent-foreground hover:text-sidebar-foreground"
             onClick={onToggle}
           >
             <XIcon className="h-5 w-5" />
@@ -78,16 +78,16 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
                 key={item.name}
                 href={item.href}
                 className={cn(
-                  "flex items-center px-4 py-2 text-neutral-700 rounded-md",
+                  "flex items-center px-4 py-2 text-sidebar-foreground rounded-md",
                   isActive
-                    ? "bg-primary-50 text-primary-700"
-                    : "hover:bg-neutral-100"
+                    ? "bg-sidebar-accent text-sidebar-primary"
+                    : "hover:bg-sidebar-accent/50"
                 )}
               >
                 <item.icon
                   className={cn(
                     "mr-3 h-5 w-5",
-                    isActive ? "text-primary-500" : "text-neutral-500"
+                    isActive ? "text-sidebar-primary" : "text-sidebar-accent-foreground"
                   )}
                 />
                 {item.name}
@@ -97,21 +97,21 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
         </nav>
 
         {/* User Profile Section */}
-        <div className="border-t border-neutral-200 p-4">
+        <div className="border-t border-sidebar-border p-4">
           <div className="flex items-center">
-            <div className="h-10 w-10 rounded-full bg-primary-200 flex items-center justify-center text-primary-700 font-medium">
+            <div className="h-10 w-10 rounded-full bg-sidebar-accent flex items-center justify-center text-sidebar-primary font-medium">
               {user?.first_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium text-neutral-800">
+              <p className="text-sm font-medium text-sidebar-foreground">
                 {user?.first_name ? `${user.first_name} ${user.last_name || ''}` : (user?.email || 'User')}
               </p>
-              <p className="text-xs text-neutral-500">
+              <p className="text-xs text-sidebar-accent-foreground">
                 {user?.role === 'admin' ? 'Administrator' : 'User'}
               </p>
             </div>
             <div className="ml-auto">
-              <button className="text-neutral-500 hover:text-neutral-700">
+              <button className="text-sidebar-accent-foreground hover:text-sidebar-foreground">
                 <LogOutIcon className="h-5 w-5" />
               </button>
             </div>
@@ -122,7 +122,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
       {/* Mobile menu button - always visible when sidebar is closed */}
       {!isOpen && (
         <button
-          className="fixed top-4 left-4 md:hidden z-50 bg-transparent text-neutral-700 p-2 rounded"
+          className="fixed top-4 left-4 md:hidden z-50 bg-transparent text-foreground p-2 rounded"
           onClick={onToggle}
         >
           <MenuIcon className="h-6 w-6" />
@@ -131,7 +131,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
 
       {/* Floating action button for adding new asset */}
       <button
-        className="fixed bottom-4 right-4 md:hidden z-50 bg-primary-500 text-white p-3 rounded-full shadow-lg"
+        className="fixed bottom-4 right-4 md:hidden z-50 bg-primary text-primary-foreground p-3 rounded-full shadow-lg"
         onClick={() => {
           // Use the Link's click method to navigate to the dashboard
           document.querySelector<HTMLAnchorElement>('a[href="/"]')?.click();

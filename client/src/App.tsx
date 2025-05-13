@@ -157,7 +157,7 @@ function App() {
             {isAuthPage ? (
               <Router />
             ) : (
-              <div className="flex h-screen overflow-hidden bg-neutral-100 text-neutral-800">
+              <div className="flex h-screen overflow-hidden bg-background text-foreground">
                 <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
                 <div className="flex-1 flex flex-col overflow-hidden">
                   <Router />
