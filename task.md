@@ -118,6 +118,12 @@ The primary objective is to significantly improve the Front-End User Interface (
     *   ✅ Implemented user preferences for controlling which standard fields (like Asset ID, price, etc.) are displayed on cards.
     *   ✅ Created a "Card Display" preferences button in the dashboard filters to customize card appearance.
 
+*   **Status Management Improvements:**
+    *   ✅ Added a three-dot menu to each status column header with options to rename, move, and delete.
+    *   ✅ Implemented a rename dialog for changing status names directly from the dashboard.
+    *   ✅ Created a move dialog with directional controls (up, down, left, right) to reorder statuses.
+    *   ✅ Added a delete confirmation dialog to prevent accidental deletion of statuses.
+
 **Still To Do:**
 *   **Comparative Analysis:** Research how leading commercial manufacturing/logistics software handles features like:
     *   Advanced product list filtering and sorting.
@@ -234,5 +240,19 @@ The asset cards in the kanban board view were displaying a circular "devices" ic
 5. Stored user preferences in localStorage for persistence across sessions
 
 These changes make the asset cards more efficient and customizable, allowing users to focus on the information that matters most to them.
+
+### Status Card Management Improvements
+
+The status cards in the dashboard kanban view had no way to be managed directly from the dashboard. Users needed to go to the admin configuration panel to rename or delete statuses, and there was no way to reorder them.
+
+**Changes Made:**
+1. Added a three-dot menu to each status column header with options to rename, move, and delete the status
+2. Implemented a rename dialog that allows users to change the name of a status directly from the dashboard
+3. Created a move dialog with directional controls (up, down, left, right) to reorder statuses
+4. Added a delete confirmation dialog to prevent accidental deletion of statuses
+5. Implemented proper error handling and loading states for all status management operations
+6. Used existing API endpoints for status operations to maintain consistency
+
+These changes significantly improve the usability of the dashboard by allowing users to manage statuses directly where they're being used, without having to navigate to a separate configuration screen.
 
 ---

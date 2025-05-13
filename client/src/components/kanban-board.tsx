@@ -6,6 +6,35 @@ import { useAppContext } from "@/context/app-context";
 import { apiRequest } from "@/lib/queryClient";
 import { AssetDetailWrapper } from "@/pages/asset-detail-wrapper";
 import { useToast } from "@/hooks/use-toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { MoreVertical, Edit, Trash2, MoveVertical } from "lucide-react";
 
 interface KanbanBoardProps {
   assets: Asset[];
@@ -14,11 +43,19 @@ interface KanbanBoardProps {
 }
 
 export function KanbanBoard({ assets, groupBy, onAssetUpdated }: KanbanBoardProps) {
-  const { statuses, locations, assignments, refreshData, user } = useAppContext();
+  const { statuses, locations, assignments, refreshData, user, currentWorkspace } = useAppContext();
   const [columns, setColumns] = useState<{ [key: string]: Asset[] }>({});
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const { toast } = useToast();
+
+  // Status management state
+  const [selectedStatus, setSelectedStatus] = useState<Status | null>(null);
+  const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
+  const [newStatusName, setNewStatusName] = useState("");
+  const [loading, setLoading] = useState(false);
 
   // Group assets based on the selected groupBy parameter
   useEffect(() => {
@@ -241,6 +278,169 @@ export function KanbanBoard({ assets, groupBy, onAssetUpdated }: KanbanBoardProp
     onAssetUpdated();
   };
 
+  // Status management functions
+  const handleStatusAction = (action: 'rename' | 'delete' | 'move', status: Status) => {
+    setSelectedStatus(status);
+
+    if (action === 'rename') {
+      setNewStatusName(status.name);
+      setIsRenameDialogOpen(true);
+    } else if (action === 'delete') {
+      setIsDeleteDialogOpen(true);
+    } else if (action === 'move') {
+      setIsMoveDialogOpen(true);
+    }
+  };
+
+  const handleRenameStatus = async () => {
+    if (!selectedStatus || !newStatusName.trim() || !currentWorkspace) return;
+
+    setLoading(true);
+    try {
+      await apiRequest('PUT', `/api/statuses/${selectedStatus.id}`, {
+        name: newStatusName.trim(),
+        workspaceId: currentWorkspace.id,
+        color: selectedStatus.color
+      });
+
+      toast({
+        title: "Status renamed",
+        description: `Status renamed to "${newStatusName}" successfully.`
+      });
+
+      refreshData();
+      setIsRenameDialogOpen(false);
+    } catch (error) {
+      console.error("Error renaming status:", error);
+      toast({
+        title: "Error",
+        description: "Failed to rename status. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteStatus = async () => {
+    if (!selectedStatus) return;
+
+    setLoading(true);
+    try {
+      await apiRequest('DELETE', `/api/statuses/${selectedStatus.id}`);
+
+      toast({
+        title: "Status deleted",
+        description: `Status "${selectedStatus.name}" deleted successfully.`
+      });
+
+      refreshData();
+      setIsDeleteDialogOpen(false);
+    } catch (error) {
+      console.error("Error deleting status:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete status. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Function to move a status in a specific direction
+  const handleMoveStatus = async (direction: 'left' | 'right' | 'up' | 'down') => {
+    if (!selectedStatus || !currentWorkspace) return;
+
+    // Get the current order of statuses
+    const statusList = [...statuses].filter(s => s.workspaceId === currentWorkspace.id);
+
+    // Find the current index of the selected status
+    const currentIndex = statusList.findIndex(s => s.id === selectedStatus.id);
+    if (currentIndex === -1) return;
+
+    // Calculate the new index based on the direction
+    let newIndex = currentIndex;
+
+    // In a grid layout, left/right moves within the row, up/down moves between rows
+    // For simplicity, we'll treat it as a linear list where:
+    // - left/up: move earlier in the list
+    // - right/down: move later in the list
+    if (direction === 'left' || direction === 'up') {
+      newIndex = Math.max(0, currentIndex - 1);
+    } else if (direction === 'right' || direction === 'down') {
+      newIndex = Math.min(statusList.length - 1, currentIndex + 1);
+    }
+
+    // If the index didn't change, no need to do anything
+    if (newIndex === currentIndex) {
+      toast({
+        title: "Cannot move",
+        description: `Status "${selectedStatus.name}" cannot be moved ${direction}.`
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Get the status we're swapping with
+      const statusToSwapWith = statusList[newIndex];
+
+      // Since we don't have a position field in the database, we'll use a workaround
+      // We'll rename both statuses temporarily with a prefix, then rename them back
+      // This will effectively swap their positions in the UI
+
+      // Step 1: Rename the first status with a temporary name
+      const tempName1 = `__TEMP1__${selectedStatus.name}`;
+      await apiRequest('PUT', `/api/statuses/${selectedStatus.id}`, {
+        name: tempName1,
+        workspaceId: currentWorkspace.id,
+        color: selectedStatus.color
+      });
+
+      // Step 2: Rename the second status with a temporary name
+      const tempName2 = `__TEMP2__${statusToSwapWith.name}`;
+      await apiRequest('PUT', `/api/statuses/${statusToSwapWith.id}`, {
+        name: tempName2,
+        workspaceId: currentWorkspace.id,
+        color: statusToSwapWith.color
+      });
+
+      // Step 3: Rename the first status to the second status's original name
+      await apiRequest('PUT', `/api/statuses/${selectedStatus.id}`, {
+        name: statusToSwapWith.name,
+        workspaceId: currentWorkspace.id,
+        color: selectedStatus.color
+      });
+
+      // Step 4: Rename the second status to the first status's original name
+      await apiRequest('PUT', `/api/statuses/${statusToSwapWith.id}`, {
+        name: selectedStatus.name,
+        workspaceId: currentWorkspace.id,
+        color: statusToSwapWith.color
+      });
+
+      toast({
+        title: "Status moved",
+        description: `Status moved ${direction} successfully.`
+      });
+
+      // Refresh the data to get the updated order
+      refreshData();
+      setIsMoveDialogOpen(false);
+    } catch (error) {
+      console.error("Error moving status:", error);
+      toast({
+        title: "Error",
+        description: "Failed to move status. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <>
       <DragDropContext onDragEnd={onDragEnd}>
@@ -258,9 +458,53 @@ export function KanbanBoard({ assets, groupBy, onAssetUpdated }: KanbanBoardProp
                       {getColumnTitle(columnId)}
                     </h3>
                   </div>
-                  <span className="text-xs font-medium px-2 py-1 rounded-full bg-muted text-muted-foreground">
-                    {columnAssets.length}
-                  </span>
+                  <div className="flex items-center">
+                    <span className="text-xs font-medium px-2 py-1 rounded-full bg-muted text-muted-foreground mr-2">
+                      {columnAssets.length}
+                    </span>
+
+                    {/* Only show the menu for status columns and not for unassigned */}
+                    {groupBy === "status" && columnId !== "unassigned" && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 p-0">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => {
+                              const status = statuses.find(s => s.id.toString() === columnId);
+                              if (status) handleStatusAction('rename', status);
+                            }}
+                          >
+                            <Edit className="mr-2 h-4 w-4" />
+                            <span>Rename</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              const status = statuses.find(s => s.id.toString() === columnId);
+                              if (status) handleStatusAction('move', status);
+                            }}
+                          >
+                            <MoveVertical className="mr-2 h-4 w-4" />
+                            <span>Move</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => {
+                              const status = statuses.find(s => s.id.toString() === columnId);
+                              if (status) handleStatusAction('delete', status);
+                            }}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            <span>Delete</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
                 </div>
               </div>
               <Droppable droppableId={columnId}>
@@ -305,6 +549,131 @@ export function KanbanBoard({ assets, groupBy, onAssetUpdated }: KanbanBoardProp
         onClose={() => setIsDetailModalOpen(false)}
         onAssetUpdated={handleAssetUpdated}
       />
+
+      {/* Rename Status Dialog */}
+      <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Rename Status</DialogTitle>
+            <DialogDescription>
+              Enter a new name for the status "{selectedStatus?.name}".
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="name" className="text-right">Name</Label>
+              <Input
+                id="name"
+                value={newStatusName}
+                onChange={(e) => setNewStatusName(e.target.value)}
+                className="col-span-3"
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsRenameDialogOpen(false)}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleRenameStatus}
+              disabled={loading || !newStatusName.trim()}
+            >
+              {loading ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Status Confirmation */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Status</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the status "{selectedStatus?.name}"?
+              Assets with this status will have their status set to null.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteStatus}
+              disabled={loading}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              {loading ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Move Status Dialog */}
+      <Dialog open={isMoveDialogOpen} onOpenChange={setIsMoveDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Move Status</DialogTitle>
+            <DialogDescription>
+              Choose a direction to move the status "{selectedStatus?.name}".
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-3 gap-4 py-4 justify-items-center">
+            <div className="col-start-2">
+              <Button
+                variant="outline"
+                onClick={() => handleMoveStatus('up')}
+                disabled={loading}
+                className="w-full"
+              >
+                Up
+              </Button>
+            </div>
+            <div className="col-start-1 col-end-2">
+              <Button
+                variant="outline"
+                onClick={() => handleMoveStatus('left')}
+                disabled={loading}
+                className="w-full"
+              >
+                Left
+              </Button>
+            </div>
+            <div className="col-start-3 col-end-4">
+              <Button
+                variant="outline"
+                onClick={() => handleMoveStatus('right')}
+                disabled={loading}
+                className="w-full"
+              >
+                Right
+              </Button>
+            </div>
+            <div className="col-start-2">
+              <Button
+                variant="outline"
+                onClick={() => handleMoveStatus('down')}
+                disabled={loading}
+                className="w-full"
+              >
+                Down
+              </Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsMoveDialogOpen(false)}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
