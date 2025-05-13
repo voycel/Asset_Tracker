@@ -237,7 +237,7 @@ export function AssetList({ assets, onAssetUpdated }: AssetListProps) {
 
   return (
     <>
-      <div className="bg-white rounded-lg shadow p-4">
+      <div className="bg-white border border-neutral-200 shadow-md rounded-xl p-4 dark:bg-neutral-800 dark:border-neutral-700 dark:shadow-lg">
         <DataTable
           columns={columns}
           data={assets}

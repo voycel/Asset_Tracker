@@ -7,6 +7,16 @@ import { useState, useEffect } from "react";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
 
+interface StatusStatItem {
+  statusName: string;
+  count: number;
+}
+
+interface StatsResponse {
+  total: number;
+  byStatus: StatusStatItem[];
+}
+
 interface Stat {
   icon: React.ElementType;
   iconColor: string;
@@ -23,15 +33,16 @@ interface QuickStatsProps {
 
 export function QuickStats({ workspaceId }: QuickStatsProps) {
   // Use React Query for better caching and refetching
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError } = useQuery<StatsResponse, Error>({
     queryKey: ['/api/stats', workspaceId],
-    queryFn: async () => {
+    queryFn: async (): Promise<StatsResponse> => {
       try {
         const response = await apiRequest('GET', `/api/stats${workspaceId ? `?workspaceId=${workspaceId}` : ''}`);
-        return response.json();
+        // Assuming response.json() will match StatsResponse
+        return response.json() as Promise<StatsResponse>;
       } catch (error) {
         console.error("Error fetching stats:", error);
-        // Return default data on error
+        // Return default data on error, matching StatsResponse structure
         return { total: 0, byStatus: [] };
       }
     },
@@ -41,7 +52,8 @@ export function QuickStats({ workspaceId }: QuickStatsProps) {
   });
 
   // Ensure stats has default values to prevent undefined errors
-  const stats = data || { total: 0, byStatus: [] };
+  // data could be undefined initially, so provide a default matching StatsResponse
+  const stats: StatsResponse = data || { total: 0, byStatus: [] };
 
   // Create stat cards based on the status data
   const getStatCards = (): Stat[] => {
@@ -58,7 +70,7 @@ export function QuickStats({ workspaceId }: QuickStatsProps) {
     ];
 
     // Add status-based stat cards
-    const statusCards = (stats.byStatus || []).map(statusStat => {
+    const statusCards = (stats.byStatus || []).map((statusStat: StatusStatItem) => {
       let icon = ArchiveIcon;
       let iconColor = "text-blue-600";
       let bgColor = "bg-blue-50";
@@ -110,7 +122,7 @@ export function QuickStats({ workspaceId }: QuickStatsProps) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[1, 2, 3, 4].map((i) => (
-          <Card key={i} className="enhanced-card overflow-hidden">
+          <Card key={i} className="rounded-xl overflow-hidden"> {/* Removed enhanced-card, adjusted base for skeleton */}
             <CardContent className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0 bg-muted rounded-full w-12 h-12 flex items-center justify-center animate-pulse">
@@ -154,7 +166,7 @@ export function QuickStats({ workspaceId }: QuickStatsProps) {
       {statCards.map((stat, index) => (
         <Card
           key={index}
-          className="enhanced-card overflow-hidden transition-all duration-200"
+          className="rounded-xl overflow-hidden transition-all duration-200 dark:bg-neutral-800 dark:border-neutral-700 dark:shadow-lg" // Removed enhanced-card
         >
           <CardContent className="p-5">
             <div className="flex items-center">

@@ -246,8 +246,8 @@ export function KanbanBoard({ assets, groupBy, onAssetUpdated }: KanbanBoardProp
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {Object.entries(columns).map(([columnId, columnAssets]) => (
-            <div key={columnId} className="enhanced-card flex flex-col">
-              <div className="px-4 py-3 border-b border-card-border rounded-t-lg">
+            <div key={columnId} className="bg-white border border-neutral-200 shadow-md rounded-xl flex flex-col overflow-hidden dark:bg-neutral-800 dark:border-neutral-700 dark:shadow-lg">
+              <div className="px-4 py-3 border-b border-neutral-200 dark:border-neutral-700">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <span

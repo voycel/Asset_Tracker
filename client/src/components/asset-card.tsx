@@ -121,17 +121,17 @@ export function AssetCard({ asset, customFieldValues }: AssetCardProps) {
   const icon = getIconForAssetType(assetType?.name);
 
   return (
-    <div className="enhanced-card p-4 cursor-pointer transition-all duration-200 hover:border-primary/50">
+    <div className="bg-white border border-neutral-200 shadow-sm rounded-lg p-4 cursor-pointer transition-all duration-200 hover:border-primary/50 hover:shadow-xl hover:scale-[1.02] dark:bg-neutral-700 dark:border-neutral-600 dark:shadow-md">
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div>
             <h4 className="text-sm font-medium text-foreground line-clamp-1">{asset.name}</h4>
-            {displayPreferences.serialNumber && asset.serialNumber ? (
+            {displayPreferences.serialNumber && asset.uniqueIdentifier ? (
               <div className="flex items-center mt-1 bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
                 <Tag className="h-3 w-3 text-primary mr-1" />
-                <p className="text-xs font-mono font-medium text-primary">{asset.serialNumber}</p>
+                <p className="text-xs font-mono font-medium text-primary">{asset.uniqueIdentifier}</p>
               </div>
-            ) : displayPreferences.serialNumber ? (
+            ) : displayPreferences.serialNumber ? ( // This fallback might be redundant if uniqueIdentifier is always shown when serialNumber pref is true
               <div className="flex items-center mt-1">
                 <Tag className="h-3 w-3 text-muted-foreground mr-1" />
                 <p className="text-xs text-muted-foreground">{asset.uniqueIdentifier}</p>
@@ -148,7 +148,7 @@ export function AssetCard({ asset, customFieldValues }: AssetCardProps) {
         </div>
       </div>
 
-      <div className="mt-3 pt-3 border-t border-card-border grid grid-cols-2 gap-2">
+      <div className="mt-3 pt-3 border-t border-neutral-200 dark:border-neutral-600 grid grid-cols-2 gap-2">
         {displayPreferences.manufacturer && manufacturer && (
           <div className="flex items-center text-xs text-muted-foreground">
             <Building className="h-3 w-3 text-muted-foreground mr-1 flex-shrink-0" />
