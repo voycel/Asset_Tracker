@@ -1,16 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
-import { Header } from "@/components/header";
-import { Asset, AssetType } from "@shared/schema";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { useAppContext } from "@/context/app-context";
+import { useState, useCallback } from "react";
+import { Asset } from "@shared/schema";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
-import { AssetDetailWrapper } from "@/pages/asset-detail-wrapper";
-import { EditAssetModal } from "@/components/edit-asset-modal";
 import { formatDate, formatCurrency, getIconForAssetType } from "@/lib/utils";
 import { Eye, Edit, Archive, Copy } from "lucide-react";
+import { useAppContext } from "@/context/app-context";
+import { useToast } from "@/hooks/use-toast";
+import { AssetDetailWrapper } from "@/pages/asset-detail-wrapper";
+import { EditAssetModal } from "@/components/edit-asset-modal";
+import { apiRequest } from "@/lib/queryClient";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,66 +18,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
-export default function Assets() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [assets, setAssets] = useState<Asset[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+interface AssetListProps {
+  assets: Asset[];
+  onAssetUpdated: () => void;
+}
+
+export function AssetList({ assets, onAssetUpdated }: AssetListProps) {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [assetDetails, setAssetDetails] = useState<any>(null);
-  const [archiveConfirmAsset, setArchiveConfirmAsset] = useState<Asset | null>(null);
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const { currentWorkspace, assetTypes, statuses, locations, manufacturers, assignments, customers, user, getCustomFieldsForAssetType } = useAppContext();
-
-  useEffect(() => {
-    fetchAssets();
-  }, [searchQuery]);
-
-  const fetchAssets = async () => {
-    try {
-      setLoading(true);
-
-      let url = "/api/assets?";
-
-      if (currentWorkspace) {
-        url += `workspaceId=${currentWorkspace.id}&`;
-      }
-
-      if (searchQuery) {
-        url += `search=${encodeURIComponent(searchQuery)}&`;
-      }
-
-      const response = await apiRequest("GET", url);
-      const data = await response.json();
-      setAssets(data);
-    } catch (error) {
-      console.error("Error fetching assets:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load assets. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-  };
+  const { assetTypes, statuses, locations, manufacturers, assignments, customers, getCustomFieldsForAssetType } = useAppContext();
 
   const handleViewAsset = (asset: Asset) => {
     setSelectedAsset(asset);
@@ -86,9 +39,9 @@ export default function Assets() {
   };
 
   const handleAssetUpdated = () => {
-    fetchAssets();
     setIsDetailModalOpen(false);
     setIsEditModalOpen(false);
+    onAssetUpdated();
   };
 
   const fetchAssetDetails = useCallback(async (asset: Asset) => {
@@ -142,34 +95,6 @@ export default function Assets() {
     }
   };
 
-  const handleArchiveAsset = async () => {
-    if (!archiveConfirmAsset) return;
-
-    try {
-      setLoading(true);
-      await apiRequest("PATCH", `/api/assets/${archiveConfirmAsset.id}/archive`, {
-        userId: user?.id
-      });
-
-      toast({
-        title: "Asset archived",
-        description: `${archiveConfirmAsset.name} has been archived successfully.`,
-      });
-
-      fetchAssets();
-    } catch (error) {
-      console.error("Error archiving asset:", error);
-      toast({
-        title: "Error",
-        description: "Failed to archive asset. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-      setArchiveConfirmAsset(null);
-    }
-  };
-
   const columns: ColumnDef<Asset>[] = [
     {
       accessorKey: "type",
@@ -217,16 +142,6 @@ export default function Assets() {
       header: "Name",
       enableSorting: true,
       cell: ({ row }) => <div className="font-medium">{row.original.name}</div>,
-    },
-    {
-      accessorKey: "manufacturer",
-      header: "Manufacturer",
-      enableSorting: true,
-      cell: ({ row }) => {
-        const asset = row.original;
-        const manufacturer = manufacturers.find(m => m.id === asset.manufacturerId);
-        return <div>{manufacturer?.name || "N/A"}</div>;
-      },
     },
     {
       accessorKey: "status",
@@ -287,31 +202,11 @@ export default function Assets() {
       accessorKey: "customer",
       header: "Customer",
       enableSorting: true,
-      sortingFn: (rowA, rowB) => {
-        const { customers } = useAppContext();
-        const customerA = customers?.find(c => c.id === rowA.original.currentCustomerId)?.name || "";
-        const customerB = customers?.find(c => c.id === rowB.original.currentCustomerId)?.name || "";
-        return customerA.localeCompare(customerB);
-      },
       cell: ({ row }) => {
         const asset = row.original;
-        // Access customers from useAppContext
-        const { customers } = useAppContext();
         const customer = customers?.find(c => c.id === asset.currentCustomerId);
         return <div>{customer?.name || "N/A"}</div>;
       },
-    },
-    {
-      accessorKey: "dateAcquired",
-      header: "Date Acquired",
-      enableSorting: true,
-      cell: ({ row }) => <div>{formatDate(row.original.dateAcquired)}</div>,
-    },
-    {
-      accessorKey: "cost",
-      header: "Cost",
-      enableSorting: true,
-      cell: ({ row }) => <div>{formatCurrency(row.original.cost)}</div>,
     },
     {
       id: "actions",
@@ -333,14 +228,6 @@ export default function Assets() {
                 <Edit className="mr-2 h-4 w-4" />
                 <span>Edit</span>
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => setArchiveConfirmAsset(row.original)}
-                className="text-red-600"
-              >
-                <Archive className="mr-2 h-4 w-4" />
-                <span>Archive</span>
-              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         );
@@ -350,33 +237,11 @@ export default function Assets() {
 
   return (
     <>
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header
-          title="Assets"
-          onMenuClick={() => setSidebarOpen(!sidebarOpen)}
-          onSearch={handleSearch}
-          searchQuery={searchQuery}
+      <div className="bg-white rounded-lg shadow p-4">
+        <DataTable
+          columns={columns}
+          data={assets}
         />
-
-        <main className="flex-1 overflow-x-auto bg-neutral-50 p-4 sm:p-6 lg:p-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold mb-6">Assets</h2>
-
-            {loading ? (
-              <div className="animate-pulse">
-                <div className="h-10 bg-neutral-200 rounded mb-4"></div>
-                <div className="h-64 bg-neutral-200 rounded"></div>
-              </div>
-            ) : (
-              <DataTable
-                columns={columns}
-                data={assets}
-                // Remove the searchColumn prop to disable the redundant search bar
-                // since we already have the global search in the header
-              />
-            )}
-          </div>
-        </main>
       </div>
 
       <AssetDetailWrapper
@@ -394,7 +259,7 @@ export default function Assets() {
           onClose={() => setIsEditModalOpen(false)}
           onSubmit={() => {
             setIsEditModalOpen(false);
-            fetchAssets();
+            onAssetUpdated();
           }}
           assetTypes={assetTypes}
           manufacturers={manufacturers}
@@ -404,31 +269,6 @@ export default function Assets() {
           customers={customers || []}
         />
       )}
-
-      <AlertDialog
-        open={!!archiveConfirmAsset}
-        onOpenChange={(open) => !open && setArchiveConfirmAsset(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Archive Asset</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to archive the asset "{archiveConfirmAsset?.name}"?
-              Archived assets will no longer appear in the main view but can be restored later.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleArchiveAsset}
-              disabled={loading}
-              className="bg-red-500 hover:bg-red-600"
-            >
-              {loading ? "Archiving..." : "Archive"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }

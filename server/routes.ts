@@ -1,8 +1,9 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { Parser, Transform } from 'json2csv';
+import { Parser } from 'json2csv';
 import { setupAuth, isAuthenticated } from "./localAuth";
+import fileUpload from 'express-fileupload';
 import {
   insertWorkspaceSchema, insertAssetTypeSchema, insertCustomFieldDefinitionSchema,
   insertManufacturerSchema, insertStatusSchema, insertLocationSchema,
@@ -170,6 +171,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   };
 
+  // Setup file upload middleware
+  app.use(fileUpload({
+    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max file size
+  }));
+
   await setupDefaultWorkspace();
   await setupDefaultSubscriptionPlans();
   await setupStripeIntegration();
@@ -187,7 +193,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Workspaces API
-  app.get('/api/workspaces', async (req, res) => {
+  app.get('/api/workspaces', async (_req, res) => {
     try {
       const workspaces = await storage.getWorkspaces();
       res.json(workspaces);
@@ -1252,47 +1258,509 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Import API
+  app.post('/api/import/assets', async (req, res) => {
+    try {
+      // Check if we have a file in the request
+      if (!req.files || Object.keys(req.files).length === 0) {
+        return res.status(400).json({
+          message: 'No file uploaded',
+          imported: 0,
+          errors: ['No file was uploaded']
+        });
+      }
+
+      // Get the uploaded file
+      const file = req.files.file;
+      const workspaceId = req.body.workspaceId ? Number(req.body.workspaceId) : undefined;
+
+      if (!workspaceId) {
+        return res.status(400).json({
+          message: 'Workspace ID is required',
+          imported: 0,
+          errors: ['Workspace ID is required']
+        });
+      }
+
+      // Determine file type
+      let assets = [];
+      let fileType = '';
+
+      if (Array.isArray(file)) {
+        return res.status(400).json({
+          message: 'Multiple files not supported',
+          imported: 0,
+          errors: ['Please upload only one file']
+        });
+      }
+
+      // Get file content as string
+      const fileContent = file.data.toString('utf8');
+
+      // Parse file based on type
+      if (file.name.endsWith('.csv')) {
+        fileType = 'csv';
+        // Parse CSV - handle different line endings
+        const rows = fileContent.split(/\r?\n/);
+        const headers = rows[0].split(',').map((h: string) => h.trim());
+
+        // Map CSV headers to database fields
+        const fieldMap: Record<string, string> = {
+          'uniqueIdentifier': 'uniqueIdentifier',
+          'name': 'name',
+          'assetTypeId': 'assetTypeId',
+          'assetTypeName': 'assetTypeName', // We'll need to look up the ID
+          'dateAcquired': 'dateAcquired',
+          'cost': 'cost',
+          'notes': 'notes',
+          'statusName': 'statusName', // We'll need to look up the ID
+          'locationName': 'locationName', // We'll need to look up the ID
+          'assignmentName': 'assignmentName', // We'll need to look up the ID
+          'manufacturerName': 'manufacturerName', // We'll need to look up the ID
+          'customerName': 'customerName', // We'll need to look up the ID
+        };
+
+        // Process each row (skip header)
+        for (let i = 1; i < rows.length; i++) {
+          if (!rows[i].trim()) continue; // Skip empty rows
+
+          const values = rows[i].split(',').map((v: string) => v.trim());
+          const asset: Record<string, any> = {};
+
+          // Map values to fields
+          headers.forEach((header: string, index: number) => {
+            const field = fieldMap[header] || header;
+            if (values[index]) {
+              asset[field] = values[index];
+            }
+          });
+
+          // Add to assets array
+          if (Object.keys(asset).length > 0) {
+            assets.push(asset);
+          }
+        }
+      } else if (file.name.endsWith('.json')) {
+        fileType = 'json';
+        // Parse JSON
+        try {
+          const jsonData = JSON.parse(fileContent);
+          if (Array.isArray(jsonData)) {
+            assets = jsonData;
+          } else {
+            return res.status(400).json({
+              message: 'Invalid JSON format',
+              imported: 0,
+              errors: ['JSON file must contain an array of assets']
+            });
+          }
+        } catch (jsonError) {
+          return res.status(400).json({
+            message: 'Invalid JSON format',
+            imported: 0,
+            errors: ['Could not parse JSON file']
+          });
+        }
+      } else {
+        return res.status(400).json({
+          message: 'Unsupported file type',
+          imported: 0,
+          errors: ['Only CSV and JSON files are supported']
+        });
+      }
+
+      // Validate and process assets
+      const importResults: {
+        imported: number;
+        errors: string[];
+        assets: any[];
+      } = {
+        imported: 0,
+        errors: [],
+        assets: []
+      };
+
+      // Get asset types, statuses, locations, etc. for lookups
+      const assetTypes = await storage.getAssetTypes(workspaceId);
+      const statuses = await storage.getStatuses(workspaceId);
+      const locations = await storage.getLocations(workspaceId);
+      const assignments = await storage.getAssignments(workspaceId);
+      const manufacturers = await storage.getManufacturers(workspaceId);
+      const customers = await storage.getCustomers(workspaceId);
+
+      // Process each asset
+      for (let i = 0; i < assets.length; i++) {
+        const asset = assets[i];
+        const assetData: any = {
+          workspaceId: workspaceId
+        };
+
+        // Required fields
+        if (!asset.uniqueIdentifier) {
+          importResults.errors.push(`Row ${i + 1}: Missing required field 'uniqueIdentifier'`);
+          continue;
+        }
+        assetData.uniqueIdentifier = asset.uniqueIdentifier;
+
+        if (!asset.name) {
+          importResults.errors.push(`Row ${i + 1}: Missing required field 'name'`);
+          continue;
+        }
+        assetData.name = asset.name;
+
+        // Asset Type (required)
+        if (asset.assetTypeId) {
+          // Check if asset type exists
+          const assetType = assetTypes.find(at => at.id === Number(asset.assetTypeId));
+          if (!assetType) {
+            importResults.errors.push(`Row ${i + 1}: Asset type with ID ${asset.assetTypeId} not found`);
+            continue;
+          }
+          assetData.assetTypeId = Number(asset.assetTypeId);
+        } else if (asset.assetTypeName) {
+          // Look up asset type by name
+          const assetType = assetTypes.find(at => at.name.toLowerCase() === asset.assetTypeName.toLowerCase());
+          if (!assetType) {
+            importResults.errors.push(`Row ${i + 1}: Asset type '${asset.assetTypeName}' not found`);
+            continue;
+          }
+          assetData.assetTypeId = assetType.id;
+        } else {
+          importResults.errors.push(`Row ${i + 1}: Missing required field 'assetTypeId' or 'assetTypeName'`);
+          continue;
+        }
+
+        // Optional fields
+        if (asset.dateAcquired) {
+          try {
+            assetData.dateAcquired = new Date(asset.dateAcquired);
+          } catch (e) {
+            importResults.errors.push(`Row ${i + 1}: Invalid date format for 'dateAcquired'`);
+          }
+        }
+
+        if (asset.cost) {
+          assetData.cost = asset.cost;
+        }
+
+        if (asset.notes) {
+          assetData.notes = asset.notes;
+        }
+
+        // Status
+        if (asset.statusId) {
+          const status = statuses.find(s => s.id === Number(asset.statusId));
+          if (status) {
+            assetData.currentStatusId = Number(asset.statusId);
+          }
+        } else if (asset.statusName) {
+          const status = statuses.find(s => s.name.toLowerCase() === asset.statusName.toLowerCase());
+          if (status) {
+            assetData.currentStatusId = status.id;
+          }
+        }
+
+        // Location
+        if (asset.locationId) {
+          const location = locations.find(l => l.id === Number(asset.locationId));
+          if (location) {
+            assetData.currentLocationId = Number(asset.locationId);
+          }
+        } else if (asset.locationName) {
+          const location = locations.find(l => l.name.toLowerCase() === asset.locationName.toLowerCase());
+          if (location) {
+            assetData.currentLocationId = location.id;
+          }
+        }
+
+        // Assignment
+        if (asset.assignmentId) {
+          const assignment = assignments.find(a => a.id === Number(asset.assignmentId));
+          if (assignment) {
+            assetData.currentAssignmentId = Number(asset.assignmentId);
+          }
+        } else if (asset.assignmentName) {
+          const assignment = assignments.find(a => a.name.toLowerCase() === asset.assignmentName.toLowerCase());
+          if (assignment) {
+            assetData.currentAssignmentId = assignment.id;
+          }
+        }
+
+        // Manufacturer
+        if (asset.manufacturerId) {
+          const manufacturer = manufacturers.find(m => m.id === Number(asset.manufacturerId));
+          if (manufacturer) {
+            assetData.manufacturerId = Number(asset.manufacturerId);
+          }
+        } else if (asset.manufacturerName) {
+          const manufacturer = manufacturers.find(m => m.name.toLowerCase() === asset.manufacturerName.toLowerCase());
+          if (manufacturer) {
+            assetData.manufacturerId = manufacturer.id;
+          }
+        }
+
+        // Customer
+        if (asset.customerId) {
+          const customer = customers.find(c => c.id === Number(asset.customerId));
+          if (customer) {
+            assetData.currentCustomerId = Number(asset.customerId);
+          }
+        } else if (asset.customerName) {
+          const customer = customers.find(c => c.name.toLowerCase() === asset.customerName.toLowerCase());
+          if (customer) {
+            assetData.currentCustomerId = customer.id;
+          }
+        }
+
+        // Create the asset
+        try {
+          const newAsset = await storage.createAsset(assetData);
+          importResults.imported++;
+          importResults.assets.push(newAsset);
+        } catch (error) {
+          const createError = error as Error;
+          importResults.errors.push(`Row ${i + 1}: Error creating asset: ${createError.message || 'Unknown error'}`);
+        }
+      }
+
+      // Return results
+      res.status(200).json({
+        message: `Import ${importResults.imported > 0 ? 'successful' : 'completed with errors'}`,
+        imported: importResults.imported,
+        errors: importResults.errors,
+        fileType
+      });
+    } catch (error) {
+      console.error('Error importing assets:', error);
+      res.status(500).json({
+        message: 'Error importing assets',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        imported: 0,
+        errors: [error instanceof Error ? error.message : 'Unknown error']
+      });
+    }
+  });
+
   // Export API
   app.get('/api/export/assets', async (req, res) => {
     try {
-      const { workspaceId, assetTypeId, statusId, locationId, assignmentId, search } = req.query;
+      const { workspaceId, assetTypeId, statusId, locationId, assignmentId, search, includeArchived, format } = req.query;
 
       // Get assets based on filters
-      const assets = await storage.getAssets(
-        workspaceId ? Number(workspaceId) : undefined,
-        assetTypeId ? Number(assetTypeId) : undefined,
-        statusId ? Number(statusId) : undefined,
-        locationId ? Number(locationId) : undefined,
-        assignmentId ? Number(assignmentId) : undefined,
-        search ? String(search) : undefined
-      );
+      let assets: any[] = [];
 
-      // Prepare data for CSV export
-      const csvParser = new Parser({
-        fields: [
-          'id',
-          'uniqueIdentifier',
-          'name',
-          'dateAcquired',
-          'cost',
-          'notes',
-          'createdAt',
-          'updatedAt'
-        ]
+      // If includeArchived is true, we need a custom query to include archived assets
+      if (includeArchived === 'true') {
+        // We'll use a simpler approach with the getAllAssets method
+
+        // Get all assets including archived ones
+        // Since we're having issues with the custom query, let's use a simpler approach
+        // First get all assets without the archived filter
+        const allAssets = await storage.getAllAssets();
+
+        // Then filter them manually based on the criteria
+        assets = allAssets.filter(asset => {
+          // Apply all the filters manually
+          if (workspaceId !== undefined && asset.workspaceId !== Number(workspaceId)) {
+            return false;
+          }
+
+          if (assetTypeId !== undefined && asset.assetTypeId !== Number(assetTypeId)) {
+            return false;
+          }
+
+          if (statusId !== undefined && asset.currentStatusId !== Number(statusId)) {
+            return false;
+          }
+
+          if (locationId !== undefined && asset.currentLocationId !== Number(locationId)) {
+            return false;
+          }
+
+          if (assignmentId !== undefined && asset.currentAssignmentId !== Number(assignmentId)) {
+            return false;
+          }
+
+          if (search) {
+            const searchLower = search.toString().toLowerCase();
+            const nameMatch = asset.name && asset.name.toLowerCase().includes(searchLower);
+            const idMatch = asset.uniqueIdentifier && asset.uniqueIdentifier.toLowerCase().includes(searchLower);
+            const notesMatch = asset.notes && asset.notes.toLowerCase().includes(searchLower);
+
+            if (!nameMatch && !idMatch && !notesMatch) {
+              return false;
+            }
+          }
+
+          return true;
+        });
+      } else {
+        // Use the standard getAssets method which filters out archived assets
+        assets = await storage.getAssets(
+          workspaceId ? Number(workspaceId) : undefined,
+          assetTypeId ? Number(assetTypeId) : undefined,
+          statusId ? Number(statusId) : undefined,
+          locationId ? Number(locationId) : undefined,
+          assignmentId ? Number(assignmentId) : undefined,
+          search ? String(search) : undefined
+        );
+      }
+
+      // Enhance assets with related data
+      const enhancedAssets = await Promise.all(assets.map(async (asset: any) => {
+        // Get status name
+        let statusName = null;
+        if (asset.currentStatusId) {
+          const status = await storage.getStatus(asset.currentStatusId);
+          statusName = status?.name;
+        }
+
+        // Get location name
+        let locationName = null;
+        if (asset.currentLocationId) {
+          const location = await storage.getLocation(asset.currentLocationId);
+          locationName = location?.name;
+        }
+
+        // Get assignment name
+        let assignmentName = null;
+        if (asset.currentAssignmentId) {
+          const assignment = await storage.getAssignment(asset.currentAssignmentId);
+          assignmentName = assignment?.name;
+        }
+
+        // Get manufacturer name
+        let manufacturerName = null;
+        if (asset.manufacturerId) {
+          const manufacturer = await storage.getManufacturer(asset.manufacturerId);
+          manufacturerName = manufacturer?.name;
+        }
+
+        // Get asset type name
+        let assetTypeName = null;
+        const assetType = await storage.getAssetType(asset.assetTypeId);
+        assetTypeName = assetType?.name;
+
+        // Get custom field values
+        const customFieldValues = await storage.getAssetCustomFieldValues(asset.id);
+
+        // Get custom field definitions to get field names
+        const customFieldDefinitions = await storage.getCustomFieldDefinitions(asset.assetTypeId);
+
+        // Create a map of custom field values with their names
+        const customFields: Record<string, any> = {};
+        customFieldValues.forEach(value => {
+          const definition = customFieldDefinitions.find(def => def.id === value.fieldDefinitionId);
+          if (definition) {
+            // Determine the actual value based on the field type
+            let fieldValue = null;
+            if (value.textValue !== null) {
+              fieldValue = value.textValue;
+            } else if (value.numberValue !== null) {
+              fieldValue = value.numberValue;
+            } else if (value.dateValue !== null) {
+              fieldValue = value.dateValue;
+            } else if (value.booleanValue !== null) {
+              fieldValue = value.booleanValue;
+            }
+
+            customFields[definition.fieldName] = fieldValue;
+          }
+        });
+
+        // Get customer name
+        let customerName = null;
+        if (asset.currentCustomerId) {
+          const customer = await storage.getCustomer(asset.currentCustomerId);
+          customerName = customer?.name;
+        }
+
+        return {
+          ...asset,
+          statusName,
+          locationName,
+          assignmentName,
+          manufacturerName,
+          assetTypeName,
+          customerName,
+          ...customFields
+        };
+      }));
+
+      // Determine all possible field names from the enhanced assets
+      const allFields = new Set<string>();
+      enhancedAssets.forEach((asset: any) => {
+        Object.keys(asset).forEach(key => allFields.add(key));
       });
 
-      const csv = csvParser.parse(assets);
+      // Define the order of standard fields
+      const standardFields = [
+        'id',
+        'uniqueIdentifier',
+        'name',
+        'assetTypeName',
+        'statusName',
+        'locationName',
+        'assignmentName',
+        'manufacturerName',
+        'customerName',
+        'dateAcquired',
+        'cost',
+        'notes',
+        'isArchived',
+        'createdAt',
+        'updatedAt'
+      ];
 
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', 'attachment; filename="assets.csv"');
-      res.status(200).send(csv);
+      // Sort fields to put standard fields first, then custom fields
+      const sortedFields = [
+        ...standardFields.filter(field => allFields.has(field)),
+        ...Array.from(allFields).filter(field => !standardFields.includes(field))
+      ];
+
+      // Handle different export formats
+      const exportFormat = format ? String(format).toLowerCase() : 'csv';
+
+      if (exportFormat === 'json') {
+        // JSON export
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', 'attachment; filename="assets.json"');
+        res.status(200).json(enhancedAssets);
+      } else if (exportFormat === 'excel') {
+        // For Excel, we'll still use CSV and let the client handle it
+        // In a production app, you might want to use a library like exceljs
+        const csvParser = new Parser({
+          fields: sortedFields as string[]
+        });
+
+        const csv = csvParser.parse(enhancedAssets);
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename="assets.csv"');
+        res.status(200).send(csv);
+      } else {
+        // Default to CSV
+        const csvParser = new Parser({
+          fields: sortedFields as string[]
+        });
+
+        const csv = csvParser.parse(enhancedAssets);
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename="assets.csv"');
+        res.status(200).send(csv);
+      }
     } catch (error) {
-      res.status(500).json({ message: 'Error exporting assets' });
+      console.error('Error exporting assets:', error);
+      res.status(500).json({
+        message: 'Error exporting assets',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 
   // Subscription Plans API
-  app.get('/api/subscription-plans', async (req, res) => {
+  app.get('/api/subscription-plans', async (_req, res) => {
     try {
       const plans = await storage.getSubscriptionPlans();
       res.json(plans);
@@ -1590,8 +2058,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Stripe Webhook Handler
-  app.post('/api/webhooks/stripe', async (req, res) => {
-    const sig = req.headers['stripe-signature'];
+  app.post('/api/webhooks/stripe', async (_req, res) => {
+    // We're not using the signature in this implementation, but we would in a real app
+    // const sig = req.headers['stripe-signature'];
 
     if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
       return res.status(400).json({ message: 'Stripe not configured' });

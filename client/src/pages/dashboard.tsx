@@ -4,6 +4,7 @@ import { Header } from "@/components/header";
 import { DashboardFilters } from "@/components/dashboard-filters";
 import { QuickStats } from "@/components/quick-stats";
 import { KanbanBoard } from "@/components/kanban-board";
+import { AssetList } from "@/components/asset-list";
 import { Asset } from "@shared/schema";
 // Remove apiRequest import if only used for this fetch
 // import { apiRequest } from "@/lib/queryClient";
@@ -192,11 +193,18 @@ export default function Dashboard() {
               </div>
             ) : assets.length > 0 ? (
               <div className="bg-transparent rounded-lg">
-                <KanbanBoard
-                  assets={assets}
-                  groupBy={groupBy}
-                  onAssetUpdated={handleAssetUpdated}
-                />
+                {view === "kanban" ? (
+                  <KanbanBoard
+                    assets={assets}
+                    groupBy={groupBy}
+                    onAssetUpdated={handleAssetUpdated}
+                  />
+                ) : (
+                  <AssetList
+                    assets={assets}
+                    onAssetUpdated={handleAssetUpdated}
+                  />
+                )}
               </div>
             ) : (
               <div className="bg-white rounded-lg shadow-md p-8 text-center mt-4 border border-neutral-200">

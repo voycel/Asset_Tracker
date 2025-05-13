@@ -78,6 +78,7 @@ export interface IStorage {
   // Asset operations
   createAsset(asset: InsertAsset): Promise<Asset>;
   getAssets(workspaceId?: number, assetTypeId?: number, statusId?: number, locationId?: number, assignmentId?: number, search?: string): Promise<Asset[]>;
+  getAllAssets(workspaceId?: number): Promise<Asset[]>; // New method to get all assets including archived
   getAsset(id: number): Promise<Asset | undefined>;
   updateAsset(id: number, asset: Partial<InsertAsset>): Promise<Asset | undefined>;
   archiveAsset(id: number): Promise<boolean>;
@@ -519,6 +520,26 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(assets)
       .where(and(...conditions))
       .orderBy(desc(assets.updatedAt));
+  }
+
+  async getAllAssets(workspaceId?: number): Promise<Asset[]> {
+    // Similar to getAssets but without the isArchived filter
+    const conditions: any[] = [];
+
+    if (workspaceId !== undefined) {
+      conditions.push(or(eq(assets.workspaceId, workspaceId), isNull(assets.workspaceId))!);
+    }
+
+    // If there are conditions, apply them
+    if (conditions.length > 0) {
+      return await db.select().from(assets)
+        .where(and(...conditions))
+        .orderBy(desc(assets.updatedAt));
+    } else {
+      // Otherwise, get all assets
+      return await db.select().from(assets)
+        .orderBy(desc(assets.updatedAt));
+    }
   }
 
   async getAsset(id: number): Promise<Asset | undefined> {
