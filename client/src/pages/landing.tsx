@@ -291,7 +291,7 @@ export default function Landing() {
               </div>
               <div className="text-center mb-4">
                 <h3 className="text-xl font-bold text-green-600">Pro</h3>
-                <div className="text-3xl font-bold my-4">$49.99<span className="text-sm font-normal text-gray-500">/month</span></div>
+                <div className="text-3xl font-bold my-4">Free<span className="text-sm font-normal text-gray-500">/month</span></div>
                 <p className="text-gray-600 mb-4">Professional asset management for businesses</p>
               </div>
               <ul className="space-y-3 mb-8">

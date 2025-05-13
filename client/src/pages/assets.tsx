@@ -220,7 +220,7 @@ export default function Assets() {
     },
     {
       accessorKey: "manufacturer",
-      header: "Manufacturer",
+      header: "Customer",
       enableSorting: true,
       cell: ({ row }) => {
         const asset = row.original;
@@ -309,7 +309,7 @@ export default function Assets() {
     },
     {
       accessorKey: "cost",
-      header: "Cost",
+      header: "Value",
       enableSorting: true,
       cell: ({ row }) => <div>{formatCurrency(row.original.cost)}</div>,
     },

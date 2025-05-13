@@ -12,8 +12,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, AlertCircle, CreditCard, Mail } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { Check, AlertCircle, Mail } from "lucide-react";
+// import { apiRequest } from "@/lib/queryClient"; // Not needed for testing
 import {
   Dialog,
   DialogContent,
@@ -47,9 +47,10 @@ interface Subscription {
 }
 
 export default function Subscription() {
+  // Simplified state for testing
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
-  const [activeSubscription, setActiveSubscription] = useState<{ subscription: Subscription, plan: SubscriptionPlan } | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Removed active subscription state for testing
+  const [isLoading] = useState(false); // Set to false to avoid loading spinner
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [contactForm, setContactForm] = useState({
     name: '',
@@ -59,53 +60,89 @@ export default function Subscription() {
     message: ''
   });
   const { toast } = useToast();
-  const { currentWorkspace, user } = useAppContext();
+  // Not using currentWorkspace for now
+  const { } = useAppContext();
 
+  // Temporarily disabled subscription data fetching
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Fetch subscription plans
-        const plansResponse = await apiRequest("GET", "/api/subscription-plans");
-        const plansData = await plansResponse.json();
-        setPlans(plansData);
-
-        // Fetch active subscription if available
-        if (currentWorkspace) {
-          try {
-            const subscriptionResponse = await apiRequest("GET", `/api/workspaces/${currentWorkspace.id}/active-subscription`);
-            if (subscriptionResponse.ok) {
-              const subscriptionData = await subscriptionResponse.json();
-              setActiveSubscription(subscriptionData);
-            }
-          } catch (error) {
-            console.error("Error fetching active subscription:", error);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching subscription data:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load subscription information",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
+    // Define mock subscription plans with all plans set to free for testing
+    const mockPlans: SubscriptionPlan[] = [
+      {
+        id: 1,
+        name: 'Free',
+        description: 'Basic asset tracking for small teams',
+        price: 0,
+        billingCycle: 'monthly',
+        features: [
+          'Up to 25 assets',
+          'Up to 3 users',
+          'Basic asset tracking',
+          'Community support'
+        ],
+        assetLimit: 25,
+        userLimit: 3
+      },
+      {
+        id: 2,
+        name: 'Light',
+        description: 'Enhanced asset tracking for growing teams',
+        price: 0, // Set to free
+        billingCycle: 'monthly',
+        features: [
+          'Up to 100 assets',
+          'Up to 5 users',
+          'Advanced asset tracking',
+          'Basic reporting',
+          'Email support'
+        ],
+        assetLimit: 100,
+        userLimit: 5
+      },
+      {
+        id: 3,
+        name: 'Pro',
+        description: 'Professional asset management for businesses',
+        price: 0, // Set to free
+        billingCycle: 'monthly',
+        features: [
+          'Up to 500 assets',
+          'Up to 15 users',
+          'Advanced asset tracking',
+          'Comprehensive reporting',
+          'Priority email support',
+          'API access'
+        ],
+        assetLimit: 500,
+        userLimit: 15
+      },
+      {
+        id: 4,
+        name: 'Enterprise',
+        description: 'Custom asset management solutions for large organizations',
+        price: 0, // Already free
+        billingCycle: 'monthly',
+        features: [
+          'Unlimited assets',
+          'Unlimited users',
+          'Advanced asset tracking',
+          'Custom reporting',
+          'Dedicated support',
+          'API access',
+          'Custom integrations',
+          'SLA guarantees'
+        ],
+        assetLimit: null,
+        userLimit: null
       }
-    };
+    ];
 
-    fetchData();
-  }, [currentWorkspace, toast]);
+    setPlans(mockPlans);
 
-  const handleSubscribe = async (planId: number) => {
-    if (!currentWorkspace) {
-      toast({
-        title: "Error",
-        description: "No workspace selected",
-        variant: "destructive",
-      });
-      return;
-    }
+    // No active subscription fetching for now
+  }, []);
 
+  // Simplified subscription handler for testing
+  const handleSubscribe = (planId: number) => {
     // For Enterprise plan, open contact form
     const enterprisePlan = plans.find(p => p.name === 'Enterprise');
     if (enterprisePlan && planId === enterprisePlan.id) {
@@ -113,137 +150,50 @@ export default function Subscription() {
       return;
     }
 
-    try {
-      // Create a checkout session with Stripe
-      const response = await apiRequest("POST", "/api/checkout-session", {
-        workspaceId: currentWorkspace.id,
-        planId: planId,
-      });
-
-      if (response.ok) {
-        const { url } = await response.json();
-
-        // Redirect to Stripe Checkout
-        if (url) {
-          window.location.href = url;
-        } else {
-          // Fallback to the old subscription method if Stripe is not configured
-          const subscriptionResponse = await apiRequest("POST", "/api/subscriptions", {
-            workspaceId: currentWorkspace.id,
-            planId: planId,
-            status: "active",
-            startDate: new Date().toISOString(),
-          });
-
-          if (subscriptionResponse.ok) {
-            const subscription = await subscriptionResponse.json();
-            const plan = plans.find(p => p.id === planId);
-            if (plan) {
-              setActiveSubscription({ subscription, plan });
-              toast({
-                title: "Success",
-                description: `Successfully subscribed to ${plan.name} plan`,
-              });
-            }
-          } else {
-            throw new Error("Failed to create subscription");
-          }
-        }
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to subscribe to plan",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Error subscribing to plan:", error);
+    // Show a toast message instead of making API calls
+    const plan = plans.find(p => p.id === planId);
+    if (plan) {
       toast({
-        title: "Error",
-        description: "Failed to subscribe to plan",
-        variant: "destructive",
+        title: "Tier Selection",
+        description: `You've selected the ${plan.name} tier. All features from this tier are available for testing.`,
       });
     }
   };
 
-  const handleCancelSubscription = async () => {
-    if (!activeSubscription) return;
-
-    try {
-      const response = await apiRequest("POST", `/api/subscriptions/${activeSubscription.subscription.id}/cancel`);
-      if (response.ok) {
-        setActiveSubscription(null);
-        toast({
-          title: "Success",
-          description: "Subscription canceled successfully",
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to cancel subscription",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Error canceling subscription:", error);
-      toast({
-        title: "Error",
-        description: "Failed to cancel subscription",
-        variant: "destructive",
-      });
-    }
+  // Simplified contact form handler for testing
+  const handleContactSubmit = () => {
+    setIsContactModalOpen(false);
+    setContactForm({
+      name: '',
+      email: '',
+      company: '',
+      phone: '',
+      message: ''
+    });
+    toast({
+      title: "Enterprise Tier Selected",
+      description: "You've selected the Enterprise tier. All Enterprise features are available for testing.",
+    });
   };
 
-  const handleContactSubmit = async () => {
-    try {
-      const response = await apiRequest("POST", "/api/contact/enterprise", contactForm);
-      if (response.ok) {
-        setIsContactModalOpen(false);
-        setContactForm({
-          name: '',
-          email: '',
-          company: '',
-          phone: '',
-          message: ''
-        });
-        toast({
-          title: "Success",
-          description: "Your inquiry has been submitted. Our team will contact you shortly.",
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to submit inquiry",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Error submitting contact form:", error);
-      toast({
-        title: "Error",
-        description: "Failed to submit inquiry",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const formatPrice = (price: number, billingCycle: string) => {
-    if (price === 0) return "Free";
-    return `$${(price / 100).toFixed(2)}/${billingCycle === 'monthly' ? 'mo' : 'yr'}`;
+  // Modified to always return "Free" regardless of price
+  const formatPrice = (_price: number, _billingCycle: string) => {
+    return "Free";
   };
 
   return (
     <>
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header
-          title="Subscription"
+          title="Feature Tiers"
+          onMenuClick={() => {}} // Empty function to satisfy prop requirements
         />
 
         <main className="flex-1 overflow-x-auto bg-neutral-50 p-4 sm:p-6 lg:p-8">
           <div className="mb-6">
-            <h2 className="text-xl font-semibold">Subscription Plans</h2>
+            <h2 className="text-xl font-semibold">Feature Tiers</h2>
             <p className="text-neutral-500">
-              Choose the right plan for your asset tracking needs
+              Choose the right feature set for your asset tracking needs
             </p>
           </div>
 
@@ -253,28 +203,24 @@ export default function Subscription() {
             </div>
           ) : (
             <>
-              {activeSubscription && (
-                <div className="mb-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-medium text-blue-800">Current Subscription</h3>
-                      <p className="text-blue-600">
-                        You are currently on the <strong>{activeSubscription.plan.name}</strong> plan
-                      </p>
-                      <p className="text-sm text-blue-500 mt-1">
-                        {activeSubscription.subscription.status === 'active' ? 'Active' : 'Inactive'} since {new Date(activeSubscription.subscription.startDate).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      className="border-red-300 text-red-600 hover:bg-red-50"
-                      onClick={handleCancelSubscription}
-                    >
-                      Cancel Subscription
-                    </Button>
+              {/* Subscription info section temporarily disabled */}
+              <div className="mb-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-medium text-blue-800">Feature Tiers</h3>
+                    <p className="text-blue-600">
+                      All feature tiers are currently <strong>available</strong> for testing
+                    </p>
+                    <p className="text-sm text-blue-500 mt-1">
+                      Select the tier that best fits your organization's needs
+                    </p>
+                  </div>
+                  <div className="flex items-center">
+                    <AlertCircle className="h-5 w-5 text-blue-500 mr-2" />
+                    <span className="text-blue-600 text-sm">Testing Mode</span>
                   </div>
                 </div>
-              )}
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {plans.map((plan) => (
@@ -289,7 +235,7 @@ export default function Subscription() {
                           {plan.name}
                         </Badge>
                         <div className="text-2xl font-bold">
-                          {plan.name === 'Enterprise' ? 'Custom' : formatPrice(plan.price, plan.billingCycle)}
+                          {formatPrice(plan.price, plan.billingCycle)}
                         </div>
                       </div>
                       <CardDescription className="mt-4">{plan.description}</CardDescription>
@@ -309,19 +255,16 @@ export default function Subscription() {
                         className="w-full"
                         variant={plan.name === 'Enterprise' ? 'outline' : 'default'}
                         onClick={() => handleSubscribe(plan.id)}
-                        disabled={activeSubscription?.plan.id === plan.id}
                       >
                         {plan.name === 'Enterprise' ? (
                           <>
                             <Mail className="mr-2 h-4 w-4" />
-                            Contact Sales
+                            Request Info
                           </>
-                        ) : activeSubscription?.plan.id === plan.id ? (
-                          'Current Plan'
                         ) : (
                           <>
-                            <CreditCard className="mr-2 h-4 w-4" />
-                            Subscribe
+                            <Check className="mr-2 h-4 w-4" />
+                            Select Tier
                           </>
                         )}
                       </Button>
@@ -337,9 +280,9 @@ export default function Subscription() {
       <Dialog open={isContactModalOpen} onOpenChange={setIsContactModalOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Contact our Enterprise Sales Team</DialogTitle>
+            <DialogTitle>Enterprise Tier Information</DialogTitle>
             <DialogDescription>
-              Fill out the form below and our team will get back to you to discuss your enterprise needs.
+              Fill out this form to select the Enterprise tier for your organization.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -402,7 +345,7 @@ export default function Subscription() {
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit" onClick={handleContactSubmit}>Submit</Button>
+            <Button type="submit" onClick={handleContactSubmit}>Select Enterprise Tier</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

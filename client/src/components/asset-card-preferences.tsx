@@ -55,78 +55,78 @@ export function AssetCardPreferences({ isOpen, onClose }: AssetCardPreferencesPr
             Asset Card Display Preferences
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="py-4 space-y-4">
           <p className="text-sm text-neutral-600 mb-4">
             Select which fields should be visible on asset cards. Custom fields can be configured in the Asset Types section.
           </p>
-          
+
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label htmlFor="serialNumber" className="cursor-pointer">Serial Number / Asset ID</Label>
-              <Switch 
-                id="serialNumber" 
-                checked={preferences.serialNumber} 
+              <Switch
+                id="serialNumber"
+                checked={preferences.serialNumber}
                 onCheckedChange={(checked) => handlePreferenceChange('serialNumber', checked)}
               />
             </div>
-            
+
             <div className="flex items-center justify-between">
-              <Label htmlFor="manufacturer" className="cursor-pointer">Manufacturer</Label>
-              <Switch 
-                id="manufacturer" 
-                checked={preferences.manufacturer} 
+              <Label htmlFor="manufacturer" className="cursor-pointer">Customer</Label>
+              <Switch
+                id="manufacturer"
+                checked={preferences.manufacturer}
                 onCheckedChange={(checked) => handlePreferenceChange('manufacturer', checked)}
               />
             </div>
-            
+
             <div className="flex items-center justify-between">
               <Label htmlFor="location" className="cursor-pointer">Location</Label>
-              <Switch 
-                id="location" 
-                checked={preferences.location} 
+              <Switch
+                id="location"
+                checked={preferences.location}
                 onCheckedChange={(checked) => handlePreferenceChange('location', checked)}
               />
             </div>
-            
+
             <div className="flex items-center justify-between">
               <Label htmlFor="assignment" className="cursor-pointer">Assignment</Label>
-              <Switch 
-                id="assignment" 
-                checked={preferences.assignment} 
+              <Switch
+                id="assignment"
+                checked={preferences.assignment}
                 onCheckedChange={(checked) => handlePreferenceChange('assignment', checked)}
               />
             </div>
-            
+
             <div className="flex items-center justify-between">
               <Label htmlFor="customer" className="cursor-pointer">Customer</Label>
-              <Switch 
-                id="customer" 
-                checked={preferences.customer} 
+              <Switch
+                id="customer"
+                checked={preferences.customer}
                 onCheckedChange={(checked) => handlePreferenceChange('customer', checked)}
               />
             </div>
-            
+
             <div className="flex items-center justify-between">
               <Label htmlFor="dateAcquired" className="cursor-pointer">Date Acquired</Label>
-              <Switch 
-                id="dateAcquired" 
-                checked={preferences.dateAcquired} 
+              <Switch
+                id="dateAcquired"
+                checked={preferences.dateAcquired}
                 onCheckedChange={(checked) => handlePreferenceChange('dateAcquired', checked)}
               />
             </div>
-            
+
             <div className="flex items-center justify-between">
-              <Label htmlFor="cost" className="cursor-pointer">Cost</Label>
-              <Switch 
-                id="cost" 
-                checked={preferences.cost} 
+              <Label htmlFor="cost" className="cursor-pointer">Value</Label>
+              <Switch
+                id="cost"
+                checked={preferences.cost}
                 onCheckedChange={(checked) => handlePreferenceChange('cost', checked)}
               />
             </div>
           </div>
         </div>
-        
+
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSave}>Save Preferences</Button>

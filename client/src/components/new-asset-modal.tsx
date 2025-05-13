@@ -28,6 +28,9 @@ import { generateRandomId } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { Plus } from "lucide-react";
+import { QuickAddCustomerModal } from "./quick-add-customer-modal";
+import { QuickAddAssignmentModal } from "./quick-add-assignment-modal";
 
 interface NewAssetModalProps {
   isOpen: boolean;
@@ -54,8 +57,14 @@ export function NewAssetModal({
   const [customFields, setCustomFields] = useState<CustomFieldDefinition[]>([]);
   const [customFieldValues, setCustomFieldValues] = useState<{ [fieldId: number]: any }>({});
   const [loading, setLoading] = useState(false);
+
+  // Quick-add modal states
+  const [isAddManufacturerModalOpen, setIsAddManufacturerModalOpen] = useState(false);
+  const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = useState(false);
+  const [isAddAssignmentModalOpen, setIsAddAssignmentModalOpen] = useState(false);
+
   const { toast } = useToast();
-  const { user, getCustomFieldsForAssetType, customers } = useAppContext(); // Access customers from context
+  const { user, getCustomFieldsForAssetType, customers, refreshData } = useAppContext(); // Access customers from context
 
   // Extend the insert schema
   const extendedSchema = insertAssetSchema.extend({
@@ -262,6 +271,48 @@ export function NewAssetModal({
     setValue("uniqueIdentifier", generateRandomId(selectedAssetType?.name?.substring(0, 3).toUpperCase() || "AST"));
   };
 
+  // Handler for when a new manufacturer is created
+  const handleManufacturerCreated = (newManufacturerId: number, newManufacturerName: string) => {
+    // Set the selected manufacturer in the form
+    setValue("manufacturerId", newManufacturerId);
+
+    // Refresh data to update the manufacturers list
+    refreshData();
+
+    toast({
+      title: "Customer Added",
+      description: `${newManufacturerName} has been added as a customer.`,
+    });
+  };
+
+  // Handler for when a new customer is created
+  const handleCustomerCreated = (newCustomerId: number, newCustomerName: string) => {
+    // Set the selected customer in the form
+    setValue("currentCustomerId", newCustomerId);
+
+    // Refresh data to update the customers list
+    refreshData();
+
+    toast({
+      title: "End User Added",
+      description: `${newCustomerName} has been added as an end user.`,
+    });
+  };
+
+  // Handler for when a new assignment is created
+  const handleAssignmentCreated = (newAssignmentId: number, newAssignmentName: string) => {
+    // Set the selected assignment in the form
+    setValue("currentAssignmentId", newAssignmentId);
+
+    // Refresh data to update the assignments list
+    refreshData();
+
+    toast({
+      title: "Assignment Added",
+      description: `${newAssignmentName} has been added as an assignment.`,
+    });
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
@@ -314,7 +365,7 @@ export function NewAssetModal({
                   </Label>
                   <Input
                     id="assetName"
-                    placeholder="MacBook Pro 16-inch"
+                    placeholder="Asset Name"
                     {...register("name")}
                     disabled={loading}
                   />
@@ -351,23 +402,36 @@ export function NewAssetModal({
 
                 <div>
                   <Label htmlFor="manufacturer" className="block text-sm font-medium text-neutral-700 mb-1">
-                    Manufacturer
+                    Customer
                   </Label>
-                  <Select
-                    onValueChange={(value) => setValue("manufacturerId", parseInt(value))}
-                    disabled={loading}
-                  >
-                    <SelectTrigger id="manufacturer" className="w-full">
-                      <SelectValue placeholder="Select Manufacturer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {manufacturers.map((manufacturer) => (
-                        <SelectItem key={manufacturer.id} value={manufacturer.id.toString()}>
-                          {manufacturer.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <Select
+                        onValueChange={(value) => setValue("manufacturerId", parseInt(value))}
+                        disabled={loading}
+                      >
+                        <SelectTrigger id="manufacturer" className="w-full">
+                          <SelectValue placeholder="Select Customer" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {manufacturers.map((manufacturer) => (
+                            <SelectItem key={manufacturer.id} value={manufacturer.id.toString()}>
+                              {manufacturer.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setIsAddManufacturerModalOpen(true)}
+                      disabled={loading}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
 
                 <div>
@@ -390,7 +454,7 @@ export function NewAssetModal({
 
                 <div>
                   <Label htmlFor="cost" className="block text-sm font-medium text-neutral-700 mb-1">
-                    Cost
+                    Value
                   </Label>
                   <div className="relative rounded-md shadow-sm">
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -548,46 +612,72 @@ export function NewAssetModal({
                 {/* Customer Selection */}
                 <div className="sm:col-span-2">
                   <Label htmlFor="customer" className="block text-sm font-medium text-neutral-700 mb-1">
-                    Customer
+                    End User
                   </Label>
-                  <Select
-                    onValueChange={(value) => setValue("currentCustomerId", value === "none" ? null : parseInt(value))}
-                    disabled={loading}
-                  >
-                    <SelectTrigger id="customer" className="w-full">
-                      <SelectValue placeholder="No Customer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No Customer</SelectItem>
-                      {customers.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id.toString()}>
-                          {customer.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <Select
+                        onValueChange={(value) => setValue("currentCustomerId", value === "none" ? null : parseInt(value))}
+                        disabled={loading}
+                      >
+                        <SelectTrigger id="customer" className="w-full">
+                          <SelectValue placeholder="No Customer" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No Customer</SelectItem>
+                          {customers.map((customer) => (
+                            <SelectItem key={customer.id} value={customer.id.toString()}>
+                              {customer.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setIsAddCustomerModalOpen(true)}
+                      disabled={loading}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="sm:col-span-2">
                   <Label htmlFor="assignment" className="block text-sm font-medium text-neutral-700 mb-1">
                     Assigned To
                   </Label>
-                  <Select
-                    onValueChange={(value) => setValue("currentAssignmentId", value === "none" ? null : parseInt(value))}
-                    disabled={loading}
-                  >
-                    <SelectTrigger id="assignment" className="w-full">
-                      <SelectValue placeholder="Unassigned" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Unassigned</SelectItem>
-                      {assignments.map((assignment) => (
-                        <SelectItem key={assignment.id} value={assignment.id.toString()}>
-                          {assignment.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <Select
+                        onValueChange={(value) => setValue("currentAssignmentId", value === "none" ? null : parseInt(value))}
+                        disabled={loading}
+                      >
+                        <SelectTrigger id="assignment" className="w-full">
+                          <SelectValue placeholder="Unassigned" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Unassigned</SelectItem>
+                          {assignments.map((assignment) => (
+                            <SelectItem key={assignment.id} value={assignment.id.toString()}>
+                              {assignment.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setIsAddAssignmentModalOpen(true)}
+                      disabled={loading}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="sm:col-span-2">
@@ -616,6 +706,31 @@ export function NewAssetModal({
           </DialogFooter>
         </form>
       </DialogContent>
+
+      {/* Quick-add modals */}
+      <QuickAddCustomerModal
+        isOpen={isAddManufacturerModalOpen}
+        onClose={() => setIsAddManufacturerModalOpen(false)}
+        onSuccess={handleManufacturerCreated}
+        title="Add New Customer"
+        description="Add a new customer to the system"
+        type="manufacturer"
+      />
+
+      <QuickAddCustomerModal
+        isOpen={isAddCustomerModalOpen}
+        onClose={() => setIsAddCustomerModalOpen(false)}
+        onSuccess={handleCustomerCreated}
+        title="Add New End User"
+        description="Add a new end user to the system"
+        type="customer"
+      />
+
+      <QuickAddAssignmentModal
+        isOpen={isAddAssignmentModalOpen}
+        onClose={() => setIsAddAssignmentModalOpen(false)}
+        onSuccess={handleAssignmentCreated}
+      />
     </Dialog>
   );
 }

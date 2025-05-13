@@ -304,7 +304,7 @@ export function EditAssetModal({
                   </Label>
                   <Input
                     id="assetName"
-                    placeholder="MacBook Pro 16-inch"
+                    placeholder="Asset Name"
                     {...register("name")}
                     disabled={loading}
                   />
@@ -333,7 +333,7 @@ export function EditAssetModal({
 
                 <div>
                   <Label htmlFor="manufacturer" className="block text-sm font-medium text-neutral-700 mb-1">
-                    Manufacturer
+                    Customer
                   </Label>
                   <Select
                     value={watch("manufacturerId")?.toString() || "none"}
@@ -368,7 +368,7 @@ export function EditAssetModal({
 
                 <div>
                   <Label htmlFor="cost" className="block text-sm font-medium text-neutral-700 mb-1">
-                    Cost
+                    Value
                   </Label>
                   <Input
                     id="cost"
@@ -405,7 +405,7 @@ export function EditAssetModal({
                 {/* Customer Selection */}
                 <div>
                   <Label htmlFor="customer" className="block text-sm font-medium text-neutral-700 mb-1">
-                    Customer
+                    End User
                   </Label>
                   <Select
                     value={watch("currentCustomerId")?.toString() || "none"}

@@ -414,7 +414,7 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated, onEdi
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {manufacturer && (
                       <div>
-                        <h4 className="text-xs font-medium text-neutral-500 uppercase">Manufacturer</h4>
+                        <h4 className="text-xs font-medium text-neutral-500 uppercase">Customer</h4>
                         <p className="text-sm text-neutral-800">{manufacturer.name}</p>
                       </div>
                     )}
@@ -423,7 +423,7 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated, onEdi
                       <p className="text-sm text-neutral-800">{formatDate(asset.dateAcquired)}</p>
                     </div>
                     <div>
-                      <h4 className="text-xs font-medium text-neutral-500 uppercase">Cost</h4>
+                      <h4 className="text-xs font-medium text-neutral-500 uppercase">Value</h4>
                       <p className="text-sm text-neutral-800">{formatCurrency(asset.cost)}</p>
                     </div>
                     <div>
@@ -594,7 +594,7 @@ export function AssetDetailModal({ asset, isOpen, onClose, onAssetUpdated, onEdi
 
                 {/* Customer */}
                 <div className="bg-white border border-neutral-200 rounded-lg shadow-sm p-4 mb-4">
-                  <h3 className="text-base font-medium text-neutral-900 mb-3">Customer</h3>
+                  <h3 className="text-base font-medium text-neutral-900 mb-3">End User</h3>
                   <select
                     className="block w-full rounded-md border-neutral-300 py-2 pl-3 pr-10 text-sm focus:border-primary-500 focus:ring-primary-500"
                     value={asset.currentCustomerId?.toString() || "none"}

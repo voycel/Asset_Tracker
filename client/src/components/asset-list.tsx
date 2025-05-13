@@ -200,7 +200,7 @@ export function AssetList({ assets, onAssetUpdated }: AssetListProps) {
     },
     {
       accessorKey: "customer",
-      header: "Customer",
+      header: "End User",
       enableSorting: true,
       cell: ({ row }) => {
         const asset = row.original;
