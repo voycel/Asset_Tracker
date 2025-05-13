@@ -110,15 +110,15 @@ export function QuickStats({ workspaceId }: QuickStatsProps) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[1, 2, 3, 4].map((i) => (
-          <Card key={i} className="bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden">
+          <Card key={i} className="enhanced-card overflow-hidden">
             <CardContent className="p-5">
               <div className="flex items-center">
-                <div className="flex-shrink-0 bg-neutral-100 rounded-full w-12 h-12 flex items-center justify-center animate-pulse">
-                  <div className="h-6 w-6 bg-neutral-200 rounded-full"></div>
+                <div className="flex-shrink-0 bg-muted rounded-full w-12 h-12 flex items-center justify-center animate-pulse">
+                  <div className="h-6 w-6 bg-muted-foreground/20 rounded-full"></div>
                 </div>
                 <div className="ml-5 animate-pulse w-full">
-                  <div className="h-4 w-24 bg-neutral-200 rounded"></div>
-                  <div className="h-8 w-16 bg-neutral-200 rounded mt-2"></div>
+                  <div className="h-4 w-24 bg-muted-foreground/20 rounded"></div>
+                  <div className="h-8 w-16 bg-muted-foreground/20 rounded mt-2"></div>
                 </div>
               </div>
             </CardContent>
@@ -132,15 +132,15 @@ export function QuickStats({ workspaceId }: QuickStatsProps) {
   if (isError) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <Card className="bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden col-span-full">
+        <Card className="enhanced-card overflow-hidden col-span-full">
           <CardContent className="p-5">
             <div className="flex items-center">
-              <div className="flex-shrink-0 bg-red-50 rounded-full w-12 h-12 flex items-center justify-center">
-                <AlertCircleIcon className="h-6 w-6 text-red-500" />
+              <div className="flex-shrink-0 bg-destructive/10 rounded-full w-12 h-12 flex items-center justify-center">
+                <AlertCircleIcon className="h-6 w-6 text-destructive" />
               </div>
               <div className="ml-5">
-                <p className="text-sm font-medium text-neutral-500">Stats Unavailable</p>
-                <p className="text-sm text-neutral-600 mt-1">Using cached data. Some information may not be up to date.</p>
+                <p className="text-sm font-medium text-muted-foreground">Stats Unavailable</p>
+                <p className="text-sm text-foreground/70 mt-1">Using cached data. Some information may not be up to date.</p>
               </div>
             </div>
           </CardContent>
@@ -154,7 +154,7 @@ export function QuickStats({ workspaceId }: QuickStatsProps) {
       {statCards.map((stat, index) => (
         <Card
           key={index}
-          className="bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden hover:shadow-md transition-shadow duration-200"
+          className="enhanced-card overflow-hidden transition-all duration-200"
         >
           <CardContent className="p-5">
             <div className="flex items-center">
@@ -162,15 +162,15 @@ export function QuickStats({ workspaceId }: QuickStatsProps) {
                 <stat.icon className={`h-6 w-6 ${stat.iconColor}`} />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-neutral-500">{stat.label}</p>
+                <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
                 <div className="flex items-baseline">
-                  <p className="text-2xl font-bold text-neutral-900">{stat.value.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-foreground">{stat.value.toLocaleString()}</p>
 
                   {stat.trend !== undefined && (
                     <div className={`ml-2 flex items-center text-xs font-medium ${
                       stat.trendDirection === 'up' ? 'text-green-600' :
-                      stat.trendDirection === 'down' ? 'text-red-600' :
-                      'text-neutral-500'
+                      stat.trendDirection === 'down' ? 'text-destructive' :
+                      'text-muted-foreground'
                     }`}>
                       {stat.trendDirection === 'up' && <span className="mr-1">↑</span>}
                       {stat.trendDirection === 'down' && <span className="mr-1">↓</span>}

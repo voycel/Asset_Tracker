@@ -159,7 +159,7 @@ function App() {
             ) : (
               <div className="flex h-screen overflow-hidden bg-background text-foreground">
                 <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
-                <div className="flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 flex flex-col overflow-hidden workspace-content">
                   <Router />
                 </div>
               </div>

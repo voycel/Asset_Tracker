@@ -47,6 +47,16 @@
   --sidebar-accent-foreground: 220 9% 46%;
   --sidebar-border: 220 13% 91%;
   --sidebar-ring: 207 90% 54%;
+
+  /* Workspace and Dashboard Colors */
+  --workspace-background: 210 20% 98%;
+  --dashboard-section-background: 0 0% 100%;
+  --card-border: 210 20% 93%;
+  --card-shadow: 210 20% 30% / 0.1;
+  --card-hover-border: 210 40% 90%;
+  --card-hover-shadow: 210 40% 30% / 0.2;
+  --section-border: 210 30% 90%;
+  --section-shadow: 210 30% 30% / 0.05;
 }
 
 .dark {
@@ -93,6 +103,16 @@
   --sidebar-accent-foreground: 240 5% 64.9%;
   --sidebar-border: 240 3.7% 15.9%;
   --sidebar-ring: 207 90% 54%;
+
+  /* Workspace and Dashboard Colors */
+  --workspace-background: 240 10% 5%;
+  --dashboard-section-background: 240 10% 7%;
+  --card-border: 240 10% 10%;
+  --card-shadow: 0 0% 0% / 0.3;
+  --card-hover-border: 240 10% 15%;
+  --card-hover-shadow: 0 0% 0% / 0.4;
+  --section-border: 240 10% 12%;
+  --section-shadow: 0 0% 0% / 0.2;
 }
 
 .purple {
@@ -139,6 +159,16 @@
   --sidebar-accent-foreground: 0 0% 90%;
   --sidebar-border: 272 30% 25%;
   --sidebar-ring: 272 70% 50%;
+
+  /* Workspace and Dashboard Colors */
+  --workspace-background: 272 20% 97%;
+  --dashboard-section-background: 272 10% 99%;
+  --card-border: 272 30% 85%;
+  --card-shadow: 272 50% 30% / 0.1;
+  --card-hover-border: 272 50% 80%;
+  --card-hover-shadow: 272 50% 30% / 0.2;
+  --section-border: 272 30% 90%;
+  --section-shadow: 272 50% 30% / 0.05;
 }
 
 @layer base {
@@ -162,4 +192,35 @@
 .kanban-column {
   height: calc(100vh - 235px);
   overflow-y: auto;
+}
+
+/* Enhanced Card Styling */
+.enhanced-card {
+  background-color: hsl(var(--dashboard-section-background));
+  border: 1px solid hsl(var(--card-border));
+  box-shadow: 0 2px 8px hsl(var(--card-shadow));
+  border-radius: var(--radius);
+  transition: all 0.2s ease-in-out;
+}
+
+.enhanced-card:hover {
+  border-color: hsl(var(--card-hover-border));
+  box-shadow: 0 4px 12px hsl(var(--card-hover-shadow));
+}
+
+/* Dashboard Section Styling */
+.dashboard-section {
+  background-color: hsl(var(--dashboard-section-background));
+  border: 1px solid hsl(var(--section-border));
+  box-shadow: 0 1px 4px hsl(var(--section-shadow));
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+/* Workspace Styling */
+.workspace-content {
+  background-color: hsl(var(--workspace-background));
+  min-height: 100%;
+  padding: 1rem;
 }

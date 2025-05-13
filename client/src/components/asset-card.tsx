@@ -121,20 +121,20 @@ export function AssetCard({ asset, customFieldValues }: AssetCardProps) {
   const icon = getIconForAssetType(assetType?.name);
 
   return (
-    <div className="bg-white border border-neutral-200 p-4 rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-all duration-200 hover:border-blue-300">
+    <div className="enhanced-card p-4 cursor-pointer transition-all duration-200 hover:border-primary/50">
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div>
-            <h4 className="text-sm font-medium text-neutral-800 line-clamp-1">{asset.name}</h4>
+            <h4 className="text-sm font-medium text-foreground line-clamp-1">{asset.name}</h4>
             {displayPreferences.serialNumber && asset.serialNumber ? (
-              <div className="flex items-center mt-1 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
-                <Tag className="h-3 w-3 text-blue-500 mr-1" />
-                <p className="text-xs font-mono font-medium text-blue-700">{asset.serialNumber}</p>
+              <div className="flex items-center mt-1 bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
+                <Tag className="h-3 w-3 text-primary mr-1" />
+                <p className="text-xs font-mono font-medium text-primary">{asset.serialNumber}</p>
               </div>
             ) : displayPreferences.serialNumber ? (
               <div className="flex items-center mt-1">
-                <Tag className="h-3 w-3 text-neutral-400 mr-1" />
-                <p className="text-xs text-neutral-500">{asset.uniqueIdentifier}</p>
+                <Tag className="h-3 w-3 text-muted-foreground mr-1" />
+                <p className="text-xs text-muted-foreground">{asset.uniqueIdentifier}</p>
               </div>
             ) : null}
           </div>
@@ -148,40 +148,40 @@ export function AssetCard({ asset, customFieldValues }: AssetCardProps) {
         </div>
       </div>
 
-      <div className="mt-3 pt-3 border-t border-neutral-200 grid grid-cols-2 gap-2">
+      <div className="mt-3 pt-3 border-t border-card-border grid grid-cols-2 gap-2">
         {displayPreferences.manufacturer && manufacturer && (
-          <div className="flex items-center text-xs text-neutral-600">
-            <Building className="h-3 w-3 text-neutral-400 mr-1 flex-shrink-0" />
+          <div className="flex items-center text-xs text-muted-foreground">
+            <Building className="h-3 w-3 text-muted-foreground mr-1 flex-shrink-0" />
             <span className="truncate">{manufacturer.name}</span>
           </div>
         )}
         {displayPreferences.location && location && (
-          <div className="flex items-center text-xs text-neutral-600">
-            <MapPin className="h-3 w-3 text-neutral-400 mr-1 flex-shrink-0" />
+          <div className="flex items-center text-xs text-muted-foreground">
+            <MapPin className="h-3 w-3 text-muted-foreground mr-1 flex-shrink-0" />
             <span className="truncate">{location.name}</span>
           </div>
         )}
         {displayPreferences.assignment && assignment && (
-          <div className="flex items-center text-xs text-neutral-600">
-            <User className="h-3 w-3 text-neutral-400 mr-1 flex-shrink-0" />
+          <div className="flex items-center text-xs text-muted-foreground">
+            <User className="h-3 w-3 text-muted-foreground mr-1 flex-shrink-0" />
             <span className="truncate">{assignment.name}</span>
           </div>
         )}
         {displayPreferences.customer && customer && (
-          <div className="flex items-center text-xs text-neutral-600">
-            <Briefcase className="h-3 w-3 text-neutral-400 mr-1 flex-shrink-0" />
+          <div className="flex items-center text-xs text-muted-foreground">
+            <Briefcase className="h-3 w-3 text-muted-foreground mr-1 flex-shrink-0" />
             <span className="truncate">{customer.name}</span>
           </div>
         )}
         {displayPreferences.dateAcquired && asset.dateAcquired && (
-          <div className="flex items-center text-xs text-neutral-600">
-            <Calendar className="h-3 w-3 text-neutral-400 mr-1 flex-shrink-0" />
+          <div className="flex items-center text-xs text-muted-foreground">
+            <Calendar className="h-3 w-3 text-muted-foreground mr-1 flex-shrink-0" />
             <span className="truncate">{formatDate(asset.dateAcquired)}</span>
           </div>
         )}
         {displayPreferences.cost && asset.cost && (
-          <div className="flex items-center text-xs text-neutral-600">
-            <DollarSign className="h-3 w-3 text-neutral-400 mr-1 flex-shrink-0" />
+          <div className="flex items-center text-xs text-muted-foreground">
+            <DollarSign className="h-3 w-3 text-muted-foreground mr-1 flex-shrink-0" />
             <span className="truncate">{formatCurrency(asset.cost)}</span>
           </div>
         )}
@@ -192,8 +192,8 @@ export function AssetCard({ asset, customFieldValues }: AssetCardProps) {
           if (!value) return null;
 
           return (
-            <div key={field.id} className="flex items-center text-xs text-neutral-600">
-              <span className="h-3 w-3 text-neutral-400 mr-1 flex-shrink-0">•</span>
+            <div key={field.id} className="flex items-center text-xs text-muted-foreground">
+              <span className="h-3 w-3 text-muted-foreground mr-1 flex-shrink-0">•</span>
               <span className="font-medium mr-1">{field.fieldName}:</span>
               <span className="truncate">{value}</span>
             </div>

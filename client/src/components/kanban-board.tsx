@@ -246,19 +246,19 @@ export function KanbanBoard({ assets, groupBy, onAssetUpdated }: KanbanBoardProp
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {Object.entries(columns).map(([columnId, columnAssets]) => (
-            <div key={columnId} className="bg-white rounded-lg shadow flex flex-col">
-              <div className="px-4 py-3 border-b border-neutral-200 bg-neutral-50 rounded-t-lg">
+            <div key={columnId} className="enhanced-card flex flex-col">
+              <div className="px-4 py-3 border-b border-card-border rounded-t-lg">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <span
                       className="inline-block w-3 h-3 rounded-full mr-2"
                       style={{ backgroundColor: getColumnColor(columnId) }}
                     ></span>
-                    <h3 className="text-sm font-medium text-neutral-800">
+                    <h3 className="text-sm font-medium text-foreground">
                       {getColumnTitle(columnId)}
                     </h3>
                   </div>
-                  <span className="text-xs font-medium px-2 py-1 rounded-full bg-neutral-200 text-neutral-800">
+                  <span className="text-xs font-medium px-2 py-1 rounded-full bg-muted text-muted-foreground">
                     {columnAssets.length}
                   </span>
                 </div>
@@ -268,7 +268,7 @@ export function KanbanBoard({ assets, groupBy, onAssetUpdated }: KanbanBoardProp
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={`p-3 flex-1 overflow-y-auto max-h-[calc(100vh-220px)] ${snapshot.isDraggingOver ? 'bg-blue-50' : ''}`}
+                    className={`p-3 flex-1 overflow-y-auto max-h-[calc(100vh-220px)] ${snapshot.isDraggingOver ? 'bg-primary/5' : ''}`}
                     style={{ minHeight: '100px' }}
                   >
                     {columnAssets.map((asset, index) => (

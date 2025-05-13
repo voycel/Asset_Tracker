@@ -160,18 +160,18 @@ export default function Dashboard() {
           onAssignmentFilterChange={setAssignmentFilter} // State update triggers query rerun
         />
 
-        <main className="flex-1 overflow-x-auto bg-neutral-100 p-4 sm:p-6 lg:p-8">
+        <main className="flex-1 overflow-x-auto p-4 sm:p-6 lg:p-8">
           {/* Conditionally render QuickStats only if workspace is selected */}
           {currentWorkspace?.id && <QuickStats workspaceId={currentWorkspace.id} />}
 
-          <div className="mt-6">
+          <div className="mt-6 dashboard-section">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-neutral-800">
+              <h2 className="text-xl font-semibold text-foreground">
                 {groupBy === "status" ? "Assets by Status" :
                  groupBy === "location" ? "Assets by Location" :
                  "Assets by Assignment"}
               </h2>
-              <Button onClick={triggerAddAsset} className="bg-blue-600 hover:bg-blue-700">
+              <Button onClick={triggerAddAsset} className="bg-primary text-primary-foreground hover:bg-primary/90">
                 <Plus className="mr-2 h-4 w-4" />
                 Add New Asset
               </Button>
@@ -181,7 +181,7 @@ export default function Dashboard() {
               // Enhanced skeleton loader with better visual representation
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
                 {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="bg-white rounded-lg shadow p-4 space-y-3">
+                  <div key={i} className="enhanced-card p-4 space-y-3">
                     <div className="flex items-center justify-between">
                       <Skeleton className="h-6 w-1/3 rounded" />
                       <Skeleton className="h-5 w-16 rounded-full" />
@@ -207,19 +207,19 @@ export default function Dashboard() {
                 )}
               </div>
             ) : (
-              <div className="bg-white rounded-lg shadow-md p-8 text-center mt-4 border border-neutral-200">
-                <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Plus className="h-8 w-8 text-blue-500" />
+              <div className="enhanced-card p-8 text-center mt-4">
+                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Plus className="h-8 w-8 text-primary" />
                 </div>
-                <h3 className="text-lg font-medium text-neutral-900 mb-2">No assets found</h3>
-                <p className="text-neutral-500 mb-6 max-w-md mx-auto">
+                <h3 className="text-lg font-medium text-foreground mb-2">No assets found</h3>
+                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
                   {assetTypeFilter || statusFilter || locationFilter || assignmentFilter || searchQuery
                     ? "Try changing your filters or search query to see more results."
                     : "Get started by adding your first asset to begin tracking your inventory."}
                 </p>
                 <Button
                   onClick={triggerAddAsset}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
                   size="lg"
                 >
                   <Plus className="mr-2 h-5 w-5" />
